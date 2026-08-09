@@ -45,7 +45,8 @@ class PlanPurchaseController extends Controller
 
     public function purchase(Request $request, Plan $plan): JsonResponse
     {
-        $addons = $request->validate([
+        $purchase = $request->validate([
+            'server_name' => 'required|string|between:1,191',
             'extra_memory' => 'nullable|integer|min:0',
             'extra_disk' => 'nullable|integer|min:0',
             'extra_cpu' => 'nullable|integer|min:0',
@@ -53,6 +54,9 @@ class PlanPurchaseController extends Controller
             'extra_backups' => 'nullable|integer|min:0',
             'extra_allocations' => 'nullable|integer|min:0',
         ]);
+
+        $serverName = trim($purchase['server_name']);
+        unset($purchase['server_name']);
 
         $addons = array_merge([
             'extra_memory' => 0,
@@ -108,8 +112,8 @@ class PlanPurchaseController extends Controller
 
         try {
             $server = $this->creationService->handle([
-                'name' => $user->username . "'s " . $plan->name,
-                'description' => 'Provisioned via ' . $plan->name . ' plan purchase.',
+                'name' => $serverName,
+                'description' => 'CREATED BY COURTNEY',
                 'owner_id' => $user->id,
                 'memory' => $plan->memory + $addons['extra_memory'],
                 'swap' => 0,

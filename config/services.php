@@ -38,4 +38,11 @@ return [
         'public_key' => env('PAYSTACK_PUBLIC_KEY'),
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
     ],
+
+    'courtneytech' => [
+        'base_url' => rtrim(env('COURTNEY_BASE_URL', 'https://courtneytech.xyz/api'), '/'),
+        'api_key' => env('COURTNEY_API_KEY'),
+        'api_secret' => env('COURTNEY_API_SECRET'),
+        'account_id' => env('COURTNEY_ACCOUNT_ID'),
+    ],
 ];

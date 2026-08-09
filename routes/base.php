@@ -17,6 +17,11 @@ Route::post('/account/wallet/topup/mobile-money', [\Pterodactyl\Http\Controllers
 Route::get('/account/wallet/topup/status/{reference}', [\Pterodactyl\Http\Controllers\Client\WalletController::class, 'status'])->name('account.wallet.topup.status');
 Route::get('/account/wallet/callback', [\Pterodactyl\Http\Controllers\Client\WalletController::class, 'callback'])->name('account.wallet.callback');
 
+// Paystack sends signed server-to-server payment confirmations here.
+Route::post('/webhooks/paystack', [\Pterodactyl\Http\Controllers\Client\WalletController::class, 'webhook'])
+    ->withoutMiddleware(['auth.session', RequireTwoFactorAuthentication::class])
+    ->name('webhooks.paystack');
+
 // Available Servers (plan store) endpoints - the /store page itself is
 // rendered by the React SPA catch-all below.
 Route::get('/account/store/plans', [\Pterodactyl\Http\Controllers\Client\PlanPurchaseController::class, 'index'])->name('account.store.plans');

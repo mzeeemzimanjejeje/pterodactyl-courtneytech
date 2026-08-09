@@ -15,11 +15,19 @@ class WalletController extends Controller
 {
     protected string $secretKey;
     protected string $publicKey;
+    protected string $courtneyBaseUrl;
+    protected string $courtneyApiKey;
+    protected string $courtneyApiSecret;
+    protected string $courtneyAccountId;
 
     public function __construct()
     {
         $this->secretKey = (string) config('services.paystack.secret_key');
         $this->publicKey = (string) config('services.paystack.public_key');
+        $this->courtneyBaseUrl = (string) config('services.courtneytech.base_url');
+        $this->courtneyApiKey = (string) config('services.courtneytech.api_key');
+        $this->courtneyApiSecret = (string) config('services.courtneytech.api_secret');
+        $this->courtneyAccountId = (string) config('services.courtneytech.account_id');
     }
 
     public function index(): View
@@ -56,7 +64,9 @@ class WalletController extends Controller
             'type' => 'deposit',
             'amount' => $data['amount'],
             'status' => 'pending',
+            'gateway' => 'paystack',
             'reference' => $reference,
+            'gateway_reference' => $reference,
             'description' => 'Wallet top-up via card',
         ]);
 
@@ -75,8 +85,16 @@ class WalletController extends Controller
             'phone' => 'required|string',
         ]);
 
+        if (!$this->courtneyApiKey || !$this->courtneyApiSecret || !$this->courtneyAccountId) {
+            Log::error('CourtneyTech is not configured: COURTNEY_API_KEY, COURTNEY_API_SECRET, or COURTNEY_ACCOUNT_ID is missing.');
+
+            return response()->json([
+                'error' => 'The Kenya M-Pesa gateway is not configured yet. Please contact support.',
+            ], 503);
+        }
+
         $user = auth()->user();
-        $reference = 'WT-' . strtoupper(uniqid()) . '-' . $user->id;
+        $reference = substr('WT' . strtoupper(bin2hex(random_bytes(5))), 0, 12);
         $phone = $this->normalizePhone($data['phone']);
 
         $transaction = Transaction::create([
@@ -84,59 +102,57 @@ class WalletController extends Controller
             'type' => 'deposit',
             'amount' => $data['amount'],
             'status' => 'pending',
+            'gateway' => 'courtneytech',
             'reference' => $reference,
-            'description' => 'Wallet top-up via M-Pesa STK push',
+            'description' => 'Courtney M-Pesa top-up',
         ]);
 
-        $client = new HttpClient();
-
         try {
-            $response = $client->post('https://api.paystack.co/charge', [
+            $response = (new HttpClient())->post($this->courtneyBaseUrl . '/v2/stkpush', [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $this->secretKey,
+                    'X-API-Key' => $this->courtneyApiKey,
+                    'X-API-Secret' => $this->courtneyApiSecret,
                     'Content-Type' => 'application/json',
                 ],
                 'json' => [
-                    'email' => $user->email,
-                    'amount' => (int) round($data['amount'] * 100),
-                    'currency' => 'KES',
+                    'payment_account_id' => (int) $this->courtneyAccountId,
+                    'phone' => $phone,
+                    'amount' => (int) round($data['amount']),
                     'reference' => $reference,
-                    'mobile_money' => [
-                        'phone' => $phone,
-                        'provider' => 'mpesa',
-                    ],
+                    'description' => 'Wallet topup',
                 ],
                 'http_errors' => false,
             ]);
 
             $statusCode = $response->getStatusCode();
-            $body = json_decode((string) $response->getBody(), true);
+            $body = json_decode((string) $response->getBody(), true) ?: [];
+            $checkoutReference = $body['checkout_request_id'] ?? $body['checkoutRequestId'] ?? null;
 
-            if ($statusCode >= 400 || empty($body['status'])) {
-                Log::error('Paystack mobile money charge failed', [
+            if ($statusCode >= 400 || ($body['success'] ?? false) !== true || !$checkoutReference) {
+                Log::error('CourtneyTech STK push failed', [
                     'status_code' => $statusCode,
-                    'body' => $body,
-                    'phone_sent' => $phone,
+                    'message' => $body['message'] ?? null,
                 ]);
 
                 $transaction->update(['status' => 'failed']);
 
                 return response()->json([
-                    'error' => $body['message'] ?? 'Unable to start the M-Pesa payment. Please check the number and try again.',
+                    'error' => $body['message'] ?? 'Unable to start the Kenya M-Pesa payment. Please try again.',
                 ], 500);
             }
 
+            $transaction->update(['gateway_reference' => $checkoutReference]);
+
             return response()->json([
                 'reference' => $reference,
-                'message' => $body['data']['display_text']
-                    ?? 'Enter your M-Pesa PIN on your phone to complete this payment.',
+                'message' => 'Enter your M-Pesa PIN on your phone to complete this payment.',
             ]);
         } catch (\Throwable $exception) {
-            Log::error('Paystack mobile money charge failed: ' . $exception->getMessage());
+            Log::error('CourtneyTech STK push failed: ' . $exception->getMessage());
             $transaction->update(['status' => 'failed']);
 
             return response()->json([
-                'error' => 'Unable to start the M-Pesa payment. Please check the number and try again.',
+                'error' => 'Unable to start the Kenya M-Pesa payment. Please try again.',
             ], 500);
         }
     }
@@ -152,7 +168,11 @@ class WalletController extends Controller
         }
 
         if ($transaction->status === 'pending') {
-            $this->verifyAndCredit($reference);
+            if ($transaction->gateway === 'courtneytech') {
+                $this->verifyCourtneyAndCredit($transaction);
+            } else {
+                $this->verifyAndCredit($reference);
+            }
             $transaction->refresh();
         }
 
@@ -167,18 +187,18 @@ class WalletController extends Controller
         $digits = preg_replace('/\D+/', '', $phone) ?? '';
 
         if (str_starts_with($digits, '254')) {
-            $national = substr($digits, 3);
-        } elseif (str_starts_with($digits, '0')) {
-            $national = substr($digits, 1);
-        } elseif (strlen($digits) === 9) {
-            $national = $digits;
-        } else {
-            $national = $digits;
+            return $digits;
         }
 
-        // Paystack's M-Pesa charge docs specifically ask for the "+" country code
-        // prefix, e.g. 0722000000 -> +254722000000 (not just 254722000000).
-        return '+254' . $national;
+        if (str_starts_with($digits, '0')) {
+            return '254' . substr($digits, 1);
+        }
+
+        if (strlen($digits) === 9) {
+            return '254' . $digits;
+        }
+
+        return $digits;
     }
 
     public function callback(Request $request): RedirectResponse
@@ -186,7 +206,12 @@ class WalletController extends Controller
         $reference = $request->query('reference');
 
         if ($reference) {
-            $this->verifyAndCredit($reference);
+            $transaction = Transaction::where('reference', $reference)->first();
+            if ($transaction && $transaction->gateway === 'courtneytech') {
+                $this->verifyCourtneyAndCredit($transaction);
+            } else {
+                $this->verifyAndCredit($reference);
+            }
         }
 
         return redirect('/account/wallet');
@@ -196,7 +221,6 @@ class WalletController extends Controller
     {
         $signature = $request->header('X-Paystack-Signature');
         $payload = $request->getContent();
-
         $expected = hash_hmac('sha512', $payload, $this->secretKey);
 
         if (!$signature || !hash_equals($expected, $signature)) {
@@ -226,10 +250,8 @@ class WalletController extends Controller
             return;
         }
 
-        $client = new HttpClient();
-
         try {
-            $response = $client->get('https://api.paystack.co/transaction/verify/' . rawurlencode($reference), [
+            $response = (new HttpClient())->get('https://api.paystack.co/transaction/verify/' . rawurlencode($reference), [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->secretKey,
                 ],
@@ -240,16 +262,63 @@ class WalletController extends Controller
             $paidAmount = isset($body['data']['amount']) ? ((float) $body['data']['amount']) / 100 : null;
 
             if ($status === 'success' && $paidAmount !== null && abs($paidAmount - (float) $transaction->amount) < 0.01) {
-                \DB::transaction(function () use ($transaction) {
-                    $transaction->update(['status' => 'success']);
-
-                    $transaction->user()->increment('wallet_balance', $transaction->amount);
-                });
+                $this->creditSuccessfulTransaction($transaction);
             } elseif (in_array($status, ['failed', 'abandoned', 'reversed'], true)) {
                 $transaction->update(['status' => 'failed']);
             }
         } catch (\Throwable $exception) {
             Log::error('Paystack verify failed: ' . $exception->getMessage());
         }
+    }
+
+    protected function verifyCourtneyAndCredit(Transaction $transaction): void
+    {
+        if (!$transaction->gateway_reference || $transaction->status === 'success') {
+            return;
+        }
+
+        try {
+            $response = (new HttpClient())->post($this->courtneyBaseUrl . '/v2/status', [
+                'headers' => [
+                    'X-API-Key' => $this->courtneyApiKey,
+                    'X-API-Secret' => $this->courtneyApiSecret,
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => ['checkout_request_id' => $transaction->gateway_reference],
+                'http_errors' => false,
+            ]);
+
+            $body = json_decode((string) $response->getBody(), true) ?: [];
+            $status = $body['status'] ?? null;
+            $paidAmount = null;
+            foreach (['amountKes', 'amount_kes', 'amount'] as $amountKey) {
+                if (isset($body[$amountKey]) && is_numeric($body[$amountKey])) {
+                    $paidAmount = (float) $body[$amountKey];
+                    break;
+                }
+            }
+
+            if ($status === 'completed' && $paidAmount !== null && abs($paidAmount - (float) $transaction->amount) < 0.01) {
+                $this->creditSuccessfulTransaction($transaction);
+            } elseif (in_array($status, ['cancelled', 'failed'], true)) {
+                $transaction->update(['status' => 'failed']);
+            }
+        } catch (\Throwable $exception) {
+            Log::error('CourtneyTech status verification failed: ' . $exception->getMessage());
+        }
+    }
+
+    protected function creditSuccessfulTransaction(Transaction $transaction): void
+    {
+        \DB::transaction(function () use ($transaction) {
+            $fresh = Transaction::whereKey($transaction->id)->lockForUpdate()->first();
+
+            if (!$fresh || $fresh->status === 'success') {
+                return;
+            }
+
+            $fresh->update(['status' => 'success']);
+            $fresh->user()->increment('wallet_balance', $fresh->amount);
+        });
     }
 }

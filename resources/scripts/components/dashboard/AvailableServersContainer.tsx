@@ -3,6 +3,7 @@ import { useHistory } from 'react-router-dom';
 import PageContentBlock from '@/components/elements/PageContentBlock';
 import Spinner from '@/components/elements/Spinner';
 import Button from '@/components/elements/Button';
+import Input from '@/components/elements/Input';
 import { Dialog } from '@/components/elements/dialog';
 import http from '@/api/http';
 import tw from 'twin.macro';
@@ -31,6 +32,7 @@ export default () => {
     const [tab, setTab] = useState<'plans' | 'custom'>('plans');
     const [plans, setPlans] = useState<Plan[] | null>(null);
     const [selected, setSelected] = useState<Plan | null>(null);
+    const [serverName, setServerName] = useState('');
     const [purchasing, setPurchasing] = useState(false);
     const [errorDialog, setErrorDialog] = useState<{ title: string; message: string; showTopUp: boolean } | null>(null);
     const { clearFlashes, clearAndAddHttpError } = useFlashKey('account:store');
@@ -43,12 +45,12 @@ export default () => {
     }, []);
 
     const onConfirmPurchase = () => {
-        if (!selected) return;
+        if (!selected || !serverName.trim()) return;
 
         setPurchasing(true);
         clearFlashes();
 
-        http.post(`/account/store/purchase/${selected.id}`)
+        http.post(`/account/store/purchase/${selected.id}`, { server_name: serverName.trim() })
             .then((response) => {
                 if (response.data?.server_id) {
                     history.push(`/server/${response.data.server_id}`);
@@ -56,6 +58,7 @@ export default () => {
                 }
                 setPurchasing(false);
                 setSelected(null);
+                setServerName('');
             })
             .catch((error) => {
                 setPurchasing(false);
@@ -70,6 +73,7 @@ export default () => {
                     clearAndAddHttpError(error);
                 }
                 setSelected(null);
+                setServerName('');
             });
     };
 
@@ -155,7 +159,13 @@ export default () => {
                                     <span css={tw`text-neutral-200`}>{plan.backups}</span>
                                 </li>
                             </ul>
-                            <Button css={tw`mt-auto`} onClick={() => setSelected(plan)}>
+                            <Button
+                                css={tw`mt-auto`}
+                                onClick={() => {
+                                    setServerName('');
+                                    setSelected(plan);
+                                }}
+                            >
                                 Buy Now
                             </Button>
                         </div>
@@ -172,8 +182,24 @@ export default () => {
             >
                 {selected && (
                     <>
-                        This will deduct {selected.currency} {parseFloat(selected.price).toFixed(2)} from your
-                        wallet and immediately provision a new server on the &quot;{selected.name}&quot; plan.
+                        <label css={tw`block text-sm text-neutral-300`} htmlFor={'server_name'}>
+                            Server name
+                            <Input
+                                id={'server_name'}
+                                name={'server_name'}
+                                type={'text'}
+                                value={serverName}
+                                onChange={(event) => setServerName(event.target.value)}
+                                placeholder={'Enter a name for your server'}
+                                autoFocus
+                                required
+                                css={tw`mt-2`}
+                            />
+                        </label>
+                        <p css={tw`text-sm text-neutral-300 mt-4`}>
+                            This will deduct {selected.currency} {parseFloat(selected.price).toFixed(2)} from your
+                            wallet and immediately provision the server with the name you enter.
+                        </p>
                     </>
                 )}
             </Dialog.Confirm>

@@ -269,7 +269,7 @@ export default () => {
                             phone: string().when('method', {
                                 is: 'phone',
                                 then: string()
-                                    .required('Enter the phone number to receive the STK push on.')
+                                    .required('Enter your Kenyan phone number to receive the CourtneyTech STK push on.')
                                     .matches(
                                         /^(?:\+?254|0)?[71]\d{8}$/,
                                         'Enter a valid Safaricom number, e.g. 0712345678.'
@@ -290,7 +290,7 @@ export default () => {
                                             setFieldValue('method', 'phone');
                                         }}
                                     >
-                                        Phone Number (M-Pesa)
+                                        Kenya M-Pesa (CourtneyTech)
                                     </MethodButton>
                                     <MethodButton
                                         type={'button'}
@@ -314,7 +314,7 @@ export default () => {
                                             <Field
                                                 type={'tel'}
                                                 name={'phone'}
-                                                label={'M-Pesa Phone Number'}
+                                                label={'Kenya M-Pesa Phone Number'}
                                                 placeholder={'0712345678'}
                                             />
                                         </div>

@@ -11,7 +11,9 @@ class Transaction extends Model
         'type',
         'amount',
         'status',
+        'gateway',
         'reference',
+        'gateway_reference',
         'description',
     ];
 
