@@ -132,6 +132,9 @@ class CustomBuildController extends Controller
                 'environment' => $environment,
                 'start_on_completion' => true,
             ], $deployment);
+
+            // Keep the real IP and port for networking, but show the platform label to clients.
+            $server->allocation()->update(['ip_alias' => 'COURTNEY TECH']);
         } catch (\Throwable $exception) {
             Log::error('Custom build server creation failed: ' . $exception->getMessage());
             return response()->json(['error' => 'Unable to provision a server right now. No charge was made — please try again shortly or contact support.'], 500);
