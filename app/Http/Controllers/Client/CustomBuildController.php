@@ -25,6 +25,14 @@ class CustomBuildController extends Controller
         return 120.0;
     }
 
+    private function isAllowedEgg(Egg $egg): bool
+    {
+        $nestName = strtoupper(trim((string) optional($egg->nest)->name));
+        $eggName = strtolower((string) preg_replace('/[^a-z0-9]+/i', '', $egg->name));
+
+        return $nestName === 'NEST-1' && in_array($eggName, ['nodejs', 'python'], true);
+    }
+
     public function options(): JsonResponse
     {
         $eggs = Egg::query()
@@ -33,8 +41,10 @@ class CustomBuildController extends Controller
             ->orderBy('nest_id')
             ->orderBy('id')
             ->get()
+            ->filter(fn (Egg $egg) => $this->isAllowedEgg($egg))
             ->groupBy(fn ($egg) => $egg->nest->name)
-            ->map(fn ($group) => $group->map(fn ($egg) => ['id' => $egg->id, 'name' => $egg->name]));
+            ->map(fn ($group) => $group->map(fn ($egg) => ['id' => $egg->id, 'name' => $egg->name])->values())
+            ->filter(fn ($group, $nestName) => strtoupper(trim((string) $nestName)) === 'NEST-1');
 
         $maxMemory = (int) (Node::query()->where('memory', '>', 0)->max('memory') ?? 0);
         $maxRamGb = max(1, (int) floor($maxMemory / 1024));
@@ -73,6 +83,10 @@ class CustomBuildController extends Controller
         }
 
         $egg = Egg::query()->with('nest')->findOrFail($input['egg_id']);
+        if (!$this->isAllowedEgg($egg)) {
+            return response()->json(['error' => 'Only the Node.js and Python eggs in NEST-1 are available for purchase.'], 422);
+        }
+
         $memory = $ramGb * 1024;
         $disk = $memory * 2;
         // SteamCMD-based Rust installations need several gigabytes for the game files.
