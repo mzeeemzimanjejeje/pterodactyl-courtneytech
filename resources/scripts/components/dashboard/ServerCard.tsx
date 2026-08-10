@@ -79,7 +79,12 @@ export default ({ server }: { server: Server }) => {
                 <div css={tw`w-9 h-9 rounded-lg bg-neutral-900 flex items-center justify-center mr-3 flex-shrink-0`}>
                     <FontAwesomeIcon icon={faServer} css={tw`text-neutral-400`} />
                 </div>
-                <p css={tw`text-neutral-100 font-medium break-words line-clamp-1`}>{server.name}</p>
+                <div css={tw`min-w-0`}>
+                    <p css={tw`text-neutral-100 font-medium break-words line-clamp-1`}>{server.name}</p>
+                    <p css={tw`text-xs text-neutral-300 font-bold italic break-words line-clamp-1 mt-1`}>
+                        {server.description || 'CREATED BY COURTNEY'}
+                    </p>
+                </div>
             </div>
 
             {isSuspended ? (
