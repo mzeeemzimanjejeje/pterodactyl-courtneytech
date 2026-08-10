@@ -10,7 +10,7 @@ use Pterodactyl\Models\Location;
 use Pterodactyl\Models\Node;
 use Pterodactyl\Models\Transaction;
 use Pterodactyl\Services\Servers\ServerCreationService;
-use Pterodactyl\Data\ServiceDeployment\DeploymentObject;
+use Pterodactyl\Models\Objects\DeploymentObject;
 
 class CustomBuildController extends Controller
 {
@@ -87,7 +87,11 @@ class CustomBuildController extends Controller
             : null;
         $environment = [];
         foreach ($egg->variables as $variable) {
-            $environment[$variable->env_variable] = $variable->default_value;
+            $default = $variable->default_value;
+            if (($default === null || $default === '') && str_contains((string) $variable->rules, 'required')) {
+                $default = str()->random(32);
+            }
+            $environment[$variable->env_variable] = $default;
         }
 
         $locationIds = Location::query()->pluck('id')->toArray();
