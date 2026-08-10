@@ -115,6 +115,9 @@ class PlanPurchaseController extends Controller
             $server = $this->creationService->handle([
                 'name' => $serverName,
                 'description' => 'CREATED BY COURTNEY',
+                'subscription_expires_at' => $user->root_admin ? null : now()->addDays(30),
+                'subscription_price' => $user->root_admin ? null : $totalPrice,
+                'subscription_exempt' => (bool) $user->root_admin,
                 'owner_id' => $user->id,
                 'memory' => $plan->memory + $addons['extra_memory'],
                 'swap' => 0,

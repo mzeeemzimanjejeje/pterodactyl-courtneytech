@@ -46,6 +46,9 @@ use Pterodactyl\Exceptions\Http\Server\ServerStateConflictException;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $installed_at
+ * @property \Illuminate\Support\Carbon|null $subscription_expires_at
+ * @property float|null $subscription_price
+ * @property bool $subscription_exempt
  * @property \Illuminate\Database\Eloquent\Collection|\Pterodactyl\Models\ActivityLog[] $activity
  * @property int|null $activity_count
  * @property Allocation|null $allocation
@@ -198,6 +201,9 @@ class Server extends Model implements Identifiable
         self::UPDATED_AT => 'datetime',
         'deleted_at' => 'datetime',
         'installed_at' => 'datetime',
+        'subscription_expires_at' => 'datetime',
+        'subscription_price' => 'decimal:2',
+        'subscription_exempt' => 'boolean',
     ];
 
     /**
