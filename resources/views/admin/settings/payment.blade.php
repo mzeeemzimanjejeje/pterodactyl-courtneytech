@@ -48,12 +48,9 @@
                 <div class="box">
                     <div class="box-header with-border">
                         <h3 class="box-title">CourtneyTech — M-Pesa</h3>
+                        <p class="text-muted">The official CourtneyTech gateway endpoint is built in and is not editable.</p>
                     </div>
                     <div class="box-body">
-                        <div class="form-group">
-                            <label class="control-label" for="courtney_base_url">API Base URL</label>
-                            <input id="courtney_base_url" type="url" class="form-control" name="courtney_base_url" value="{{ old('courtney_base_url') }}" placeholder="https://courtneytech.xyz/api">
-                        </div>
                         <div class="form-group">
                             <label class="control-label" for="courtney_api_key">API Key</label>
                             <input id="courtney_api_key" type="text" class="form-control" name="courtney_api_key" autocomplete="off" placeholder="{{ $configured['settings::courtneytech:api_key'] ? 'Configured — enter a new value to replace it' : 'CourtneyTech API key' }}">

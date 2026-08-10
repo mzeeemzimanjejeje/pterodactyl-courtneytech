@@ -20,7 +20,6 @@ class PaymentController extends Controller
     private const FIELDS = [
         'services:paystack:public_key' => false,
         'services:paystack:secret_key' => true,
-        'services:courtneytech:base_url' => false,
         'services:courtneytech:api_key' => true,
         'services:courtneytech:api_secret' => true,
         'services:courtneytech:account_id' => false,
@@ -42,7 +41,6 @@ class PaymentController extends Controller
         $configKeys = [
             'services:paystack:public_key' => 'services.paystack.public_key',
             'services:paystack:secret_key' => 'services.paystack.secret_key',
-            'services:courtneytech:base_url' => 'services.courtneytech.base_url',
             'services:courtneytech:api_key' => 'services.courtneytech.api_key',
             'services:courtneytech:api_secret' => 'services.courtneytech.api_secret',
             'services:courtneytech:account_id' => 'services.courtneytech.account_id',
@@ -61,7 +59,6 @@ class PaymentController extends Controller
         $data = $request->validate([
             'paystack_public_key' => ['nullable', 'string', 'max:255'],
             'paystack_secret_key' => ['nullable', 'string', 'max:255'],
-            'courtney_base_url' => ['nullable', 'url', 'max:255'],
             'courtney_api_key' => ['nullable', 'string', 'max:255'],
             'courtney_api_secret' => ['nullable', 'string', 'max:255'],
             'courtney_account_id' => ['nullable', 'string', 'max:100'],
@@ -70,7 +67,6 @@ class PaymentController extends Controller
         $mapping = [
             'paystack_public_key' => 'services:paystack:public_key',
             'paystack_secret_key' => 'services:paystack:secret_key',
-            'courtney_base_url' => 'services:courtneytech:base_url',
             'courtney_api_key' => 'services:courtneytech:api_key',
             'courtney_api_secret' => 'services:courtneytech:api_secret',
             'courtney_account_id' => 'services:courtneytech:account_id',
