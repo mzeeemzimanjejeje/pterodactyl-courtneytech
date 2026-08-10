@@ -9,6 +9,13 @@ const InstallListener = () => {
     const getServer = ServerContext.useStoreActions((actions) => actions.server.getServer);
     const setServerFromState = ServerContext.useStoreActions((actions) => actions.server.setServerFromState);
 
+    useEffect(() => {
+        const refresh = () => getServer(uuid).catch((error) => console.error(error));
+        const interval = window.setInterval(refresh, 10000);
+
+        return () => window.clearInterval(interval);
+    }, [uuid]);
+
     useWebsocketEvent(SocketEvent.BACKUP_RESTORE_COMPLETED, () => {
         mutate(getDirectorySwrKey(uuid, '/'), undefined);
         setServerFromState((s) => ({ ...s, status: null }));

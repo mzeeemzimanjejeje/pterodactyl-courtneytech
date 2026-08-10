@@ -75,6 +75,12 @@ class CustomBuildController extends Controller
         $egg = Egg::query()->with('nest')->findOrFail($input['egg_id']);
         $memory = $ramGb * 1024;
         $disk = $memory * 2;
+        // SteamCMD-based Rust installations need several gigabytes for the game files.
+        // Preserve the 2x-RAM rule for other eggs, but prevent Rust from being created
+        // with a quota that guarantees a post-install "not enough disk space" failure.
+        if (strtolower($egg->name) === 'rust') {
+            $disk = max($disk, 12 * 1024);
+        }
         $price = $ramGb <= 4 ? 70.0 : ($ramGb <= 8 ? 90.0 : 120.0);
         $user = auth()->user();
 
