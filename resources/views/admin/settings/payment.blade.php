@@ -1,4 +1,5 @@
 @include('partials.admin.settings.nav', ['activeTab' => 'payment'])
+@extends('layouts.admin')
 
 @section('title')
     Payment API Keys
