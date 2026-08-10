@@ -55,7 +55,8 @@ class PlanPurchaseController extends Controller
             'extra_allocations' => 'nullable|integer|min:0',
         ]);
 
-        $serverName = trim($purchase['server_name']);
+        $serverName = strtoupper(trim($purchase['server_name']));
+        $serverName = preg_replace("/\\s*'S SERVER$/i", '', $serverName) . "'S SERVER";
         unset($purchase['server_name']);
 
         $addons = array_merge([

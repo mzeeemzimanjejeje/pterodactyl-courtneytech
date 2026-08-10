@@ -100,10 +100,13 @@ class CustomBuildController extends Controller
         }
         $deployment = (new DeploymentObject())->setLocations($locationIds)->setDedicated(false);
 
+        $displayName = strtoupper(trim($input['server_name']));
+        $displayName = preg_replace("/\\s*'S SERVER$/i", '', $displayName) . "'S SERVER";
+
         try {
             $server = $this->creationService->handle([
-                'name' => trim($input['server_name']),
-                'description' => 'Created with ' . $ramGb . ' GB RAM.',
+                'name' => $displayName,
+                'description' => 'CREATED BY COURTNEY',
                 'owner_id' => $user->id,
                 'memory' => $memory,
                 'swap' => 0,
