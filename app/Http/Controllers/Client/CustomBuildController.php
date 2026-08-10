@@ -31,7 +31,7 @@ class CustomBuildController extends Controller
             ->whereHas('nest')
             ->with('nest:id,name')
             ->orderBy('nest_id')
-            ->orderBy('name')
+            ->orderBy('id')
             ->get()
             ->groupBy(fn ($egg) => $egg->nest->name)
             ->map(fn ($group) => $group->map(fn ($egg) => ['id' => $egg->id, 'name' => $egg->name]));
