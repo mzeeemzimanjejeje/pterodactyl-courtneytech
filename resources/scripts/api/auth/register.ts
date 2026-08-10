@@ -8,28 +8,17 @@ export interface RegisterResponse {
 export interface RegisterData {
     email: string;
     username: string;
-    nameFirst: string;
-    nameLast: string;
     password: string;
     passwordConfirmation: string;
 }
 
-export default ({
-    email,
-    username,
-    nameFirst,
-    nameLast,
-    password,
-    passwordConfirmation,
-}: RegisterData): Promise<RegisterResponse> => {
+export default ({ email, username, password, passwordConfirmation }: RegisterData): Promise<RegisterResponse> => {
     return new Promise((resolve, reject) => {
         http.get('/sanctum/csrf-cookie')
             .then(() =>
                 http.post('/auth/register', {
                     email,
                     username,
-                    name_first: nameFirst,
-                    name_last: nameLast,
                     password,
                     password_confirmation: passwordConfirmation,
                 })

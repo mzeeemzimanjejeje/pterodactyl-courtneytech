@@ -31,8 +31,6 @@ class RegisterController extends AbstractLoginController
         $validator = Validator::make($request->all(), [
             'email' => 'required|email:strict|between:1,191|unique:users,email',
             'username' => ['required', 'between:1,191', 'unique:users,username', new Username()],
-            'name_first' => 'required|string|between:1,191',
-            'name_last' => 'required|string|between:1,191',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
@@ -42,6 +40,11 @@ class RegisterController extends AbstractLoginController
 
         $data = $validator->validated();
         unset($data['password_confirmation']);
+
+        // Self-registered accounts use the username consistently for both
+        // required profile-name columns; the UI does not ask for separate names.
+        $data['name_first'] = $data['username'];
+        $data['name_last'] = $data['username'];
 
         // root_admin defaults to false on the User model, so every
         // self-registered account is a standard (non-admin) user.

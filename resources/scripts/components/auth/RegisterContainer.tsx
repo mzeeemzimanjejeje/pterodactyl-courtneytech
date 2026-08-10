@@ -12,8 +12,6 @@ import useFlash from '@/plugins/useFlash';
 interface Values {
     email: string;
     username: string;
-    nameFirst: string;
-    nameLast: string;
     password: string;
     passwordConfirmation: string;
 }
@@ -52,16 +50,12 @@ const RegisterContainer = ({ history }: RouteComponentProps) => {
             initialValues={{
                 email: '',
                 username: '',
-                nameFirst: '',
-                nameLast: '',
                 password: '',
                 passwordConfirmation: '',
             }}
             validationSchema={object().shape({
                 email: string().email('Please enter a valid email address.').required('An email is required.'),
                 username: string().required('A username is required.'),
-                nameFirst: string().required('Your first name is required.'),
-                nameLast: string().required('Your last name is required.'),
                 password: string()
                     .min(8, 'Password must be at least 8 characters.')
                     .required('A password is required.'),
@@ -84,20 +78,6 @@ const RegisterContainer = ({ history }: RouteComponentProps) => {
                     <Field light type={'email'} label={'Email'} name={'email'} disabled={isSubmitting} />
                     <div css={tw`mt-6`}>
                         <Field light type={'text'} label={'Username'} name={'username'} disabled={isSubmitting} />
-                    </div>
-                    <div css={tw`mt-6 flex gap-4`}>
-                        <div css={tw`w-1/2`}>
-                            <Field
-                                light
-                                type={'text'}
-                                label={'First Name'}
-                                name={'nameFirst'}
-                                disabled={isSubmitting}
-                            />
-                        </div>
-                        <div css={tw`w-1/2`}>
-                            <Field light type={'text'} label={'Last Name'} name={'nameLast'} disabled={isSubmitting} />
-                        </div>
                     </div>
                     <div css={tw`mt-6`}>
                         <Field light type={'password'} label={'Password'} name={'password'} disabled={isSubmitting} />
