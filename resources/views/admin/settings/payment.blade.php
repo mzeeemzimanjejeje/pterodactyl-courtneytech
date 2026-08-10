@@ -35,11 +35,11 @@
                     <div class="box-body">
                         <div class="form-group">
                             <label class="control-label" for="paystack_public_key">Public Key</label>
-                            <input id="paystack_public_key" type="text" class="form-control" name="paystack_public_key" autocomplete="off" placeholder="{{ $configured['settings::paystack:public_key'] ? 'Configured — enter a new value to replace it' : 'pk_live_...' }}">
+                            <input id="paystack_public_key" type="text" class="form-control" name="paystack_public_key" autocomplete="off" placeholder="{{ data_get($configured, 'settings::paystack:public_key', false) ? 'Configured — enter a new value to replace it' : 'pk_live_...' }}">
                         </div>
                         <div class="form-group">
                             <label class="control-label" for="paystack_secret_key">Secret Key</label>
-                            <input id="paystack_secret_key" type="password" class="form-control" name="paystack_secret_key" autocomplete="new-password" placeholder="{{ $configured['settings::paystack:secret_key'] ? 'Configured — enter a new value to replace it' : 'sk_live_...' }}">
+                            <input id="paystack_secret_key" type="password" class="form-control" name="paystack_secret_key" autocomplete="new-password" placeholder="{{ data_get($configured, 'settings::paystack:secret_key', false) ? 'Configured — enter a new value to replace it' : 'sk_live_...' }}">
                         </div>
                     </div>
                 </div>
@@ -53,15 +53,15 @@
                     <div class="box-body">
                         <div class="form-group">
                             <label class="control-label" for="courtney_api_key">API Key</label>
-                            <input id="courtney_api_key" type="text" class="form-control" name="courtney_api_key" autocomplete="off" placeholder="{{ $configured['settings::courtneytech:api_key'] ? 'Configured — enter a new value to replace it' : 'CourtneyTech API key' }}">
+                            <input id="courtney_api_key" type="text" class="form-control" name="courtney_api_key" autocomplete="off" placeholder="{{ data_get($configured, 'settings::courtneytech:api_key', false) ? 'Configured — enter a new value to replace it' : 'CourtneyTech API key' }}">
                         </div>
                         <div class="form-group">
                             <label class="control-label" for="courtney_api_secret">API Secret</label>
-                            <input id="courtney_api_secret" type="password" class="form-control" name="courtney_api_secret" autocomplete="new-password" placeholder="{{ $configured['settings::courtneytech:api_secret'] ? 'Configured — enter a new value to replace it' : 'CourtneyTech API secret' }}">
+                            <input id="courtney_api_secret" type="password" class="form-control" name="courtney_api_secret" autocomplete="new-password" placeholder="{{ data_get($configured, 'settings::courtneytech:api_secret', false) ? 'Configured — enter a new value to replace it' : 'CourtneyTech API secret' }}">
                         </div>
                         <div class="form-group">
                             <label class="control-label" for="courtney_account_id">Payment Account ID</label>
-                            <input id="courtney_account_id" type="text" class="form-control" name="courtney_account_id" autocomplete="off" placeholder="{{ $configured['settings::courtneytech:account_id'] ? 'Configured — enter a new value to replace it' : 'e.g. 9' }}">
+                            <input id="courtney_account_id" type="text" class="form-control" name="courtney_account_id" autocomplete="off" placeholder="{{ data_get($configured, 'settings::courtneytech:account_id', false) ? 'Configured — enter a new value to replace it' : 'e.g. 9' }}">
                         </div>
                     </div>
                 </div>
