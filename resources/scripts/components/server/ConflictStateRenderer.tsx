@@ -4,6 +4,8 @@ import ScreenBlock from '@/components/elements/ScreenBlock';
 import ServerInstallSvg from '@/assets/images/server_installing.svg';
 import ServerErrorSvg from '@/assets/images/server_error.svg';
 import ServerRestoreSvg from '@/assets/images/server_restore.svg';
+import ServerContentBlock from '@/components/elements/ServerContentBlock';
+import Console from '@/components/server/console/Console';
 
 export default () => {
     const status = ServerContext.useStoreState((state) => state.server.data?.status || null);
@@ -12,11 +14,23 @@ export default () => {
         (state) => state.server.data?.isNodeUnderMaintenance || false
     );
 
-    return status === 'installing' || status === 'install_failed' || status === 'reinstall_failed' ? (
+    if (status === 'installing') {
+        return (
+            <ServerContentBlock title={'Installation Console'}>
+                <div className={'mb-4 rounded bg-yellow-500/10 p-3 text-sm text-yellow-200'}>
+                    Installation is in progress. Live installer output will appear below. Please keep this page open or
+                    refresh it to reconnect.
+                </div>
+                <Console />
+            </ServerContentBlock>
+        );
+    }
+
+    return status === 'install_failed' || status === 'reinstall_failed' ? (
         <ScreenBlock
-            title={'Running Installer'}
+            title={'Installation Failed'}
             image={ServerInstallSvg}
-            message={'Your server should be ready soon, please try again in a few minutes.'}
+            message={'The installation failed. Check the installation console or retry the installation.'}
         />
     ) : status === 'suspended' ? (
         <ScreenBlock

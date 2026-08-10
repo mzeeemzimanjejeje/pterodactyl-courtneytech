@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import useWebsocketEvent from '@/plugins/useWebsocketEvent';
 import { ServerContext } from '@/state/server';
 import { SocketEvent } from '@/components/server/events';
