@@ -20,9 +20,9 @@ class CustomBuildController extends Controller
 
     private function ramPrice(int $ramGb): float
     {
-        if ($ramGb <= 4) return 70.0;
-        if ($ramGb <= 8) return 90.0;
-        return 120.0;
+        if ($ramGb <= 4) return 100.0;
+        if ($ramGb <= 8) return 130.0;
+        return 150.0;
     }
 
     private function isAllowedEgg(Egg $egg): bool
@@ -53,9 +53,9 @@ class CustomBuildController extends Controller
             'eggs' => $eggs,
             'ram_options' => range(1, $maxRamGb),
             'ram_prices' => [
-                ['min' => 1, 'max' => 4, 'price_kes' => 70],
-                ['min' => 5, 'max' => 8, 'price_kes' => 90],
-                ['min' => 9, 'max' => null, 'price_kes' => 120],
+                ['min' => 1, 'max' => 4, 'price_kes' => 100],
+                ['min' => 5, 'max' => 8, 'price_kes' => 130],
+                ['min' => 9, 'max' => null, 'price_kes' => 150],
             ],
             'defaults' => [
                 'disk_multiplier' => 2,
@@ -95,7 +95,7 @@ class CustomBuildController extends Controller
         if (strtolower($egg->name) === 'rust') {
             $disk = max($disk, 12 * 1024);
         }
-        $price = $ramGb <= 4 ? 70.0 : ($ramGb <= 8 ? 90.0 : 120.0);
+        $price = $ramGb <= 4 ? 100.0 : ($ramGb <= 8 ? 130.0 : 150.0);
         $user = auth()->user();
 
         if ((float) $user->wallet_balance < $price) {
