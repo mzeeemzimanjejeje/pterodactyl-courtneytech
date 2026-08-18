@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import PageContentBlock from '@/components/elements/PageContentBlock';
 import ContentBox from '@/components/elements/ContentBox';
 import Button from '@/components/elements/Button';
@@ -88,6 +89,11 @@ const MethodButton = styled.button<{ $active: boolean }>`
 `;
 
 export default () => {
+    const location = useLocation();
+    const query = new URLSearchParams(location.search);
+    const requestedAmount = Number(query.get('amount') || query.get('topup_amount'));
+    const suggestedAmount = [70, 100, 120, 150].includes(requestedAmount) ? requestedAmount : 120;
+    const suggestedMethod: PaymentMethod = suggestedAmount === 150 ? 'card' : 'phone';
     const [data, setData] = useState<WalletData | null>(null);
     const [loading, setLoading] = useState(true);
     const [pendingMessage, setPendingMessage] = useState<string | null>(null);
@@ -261,10 +267,11 @@ export default () => {
                 <ContentBox title={'Top Up'} css={tw`w-full sm:flex-1 mt-8 sm:mt-0`}>
                     <Formik
                         onSubmit={onSubmit}
-                        initialValues={{ method: 'phone', amount: 120, phone: '' } as Values}
+                        enableReinitialize
+                        initialValues={{ method: suggestedMethod, amount: suggestedAmount, phone: '' } as Values}
                         validationSchema={object().shape({
                             amount: number()
-                                .oneOf([120, 150], 'Choose the fixed top-up amount for the selected gateway.')
+                                .oneOf([70, 100, 120, 150], 'Choose a valid top-up amount: KSh 70, 100, 120, or 150.')
                                 .required('Please enter an amount.'),
                             phone: string().when('method', {
                                 is: 'phone',
@@ -326,9 +333,7 @@ export default () => {
                                     </Button>
                                 </div>
 
-                                {pendingMessage && (
-                                    <p css={tw`text-sm text-yellow-400 mt-3`}>{pendingMessage}</p>
-                                )}
+                                {pendingMessage && <p css={tw`text-sm text-yellow-400 mt-3`}>{pendingMessage}</p>}
                             </Form>
                         )}
                     </Formik>
@@ -352,9 +357,7 @@ export default () => {
                         <tbody>
                             {data.transactions.map((tx) => (
                                 <tr key={tx.id} css={tw`border-b border-neutral-700`}>
-                                    <td css={tw`py-2 text-neutral-300`}>
-                                        {new Date(tx.created_at).toLocaleString()}
-                                    </td>
+                                    <td css={tw`py-2 text-neutral-300`}>{new Date(tx.created_at).toLocaleString()}</td>
                                     <td css={tw`py-2 text-neutral-300 capitalize`}>{tx.type}</td>
                                     <td css={tw`py-2 text-neutral-300`}>{tx.description || '—'}</td>
                                     <td css={tw`py-2 text-neutral-100 text-right`}>

@@ -9,6 +9,7 @@ use GuzzleHttp\Client as HttpClient;
 use Pterodactyl\Models\Transaction;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\Rule;
 use Pterodactyl\Http\Controllers\Controller;
 
 class WalletController extends Controller
@@ -52,9 +53,11 @@ class WalletController extends Controller
 
     public function initializeCard(Request $request): JsonResponse
     {
+        $request->merge(['amount' => is_numeric($request->input('amount')) ? (float) $request->input('amount') : $request->input('amount')]);
         $data = $request->validate([
-            'amount' => 'required|numeric|in:150',
+            'amount' => ['required', 'numeric', Rule::in([150])],
         ]);
+        $amount = (float) $data['amount'];
 
         $user = auth()->user();
         $reference = 'WT-' . strtoupper(uniqid()) . '-' . $user->id;
@@ -62,7 +65,7 @@ class WalletController extends Controller
         Transaction::create([
             'user_id' => $user->id,
             'type' => 'deposit',
-            'amount' => $data['amount'],
+            'amount' => $amount,
             'status' => 'pending',
             'gateway' => 'paystack',
             'reference' => $reference,
@@ -74,16 +77,18 @@ class WalletController extends Controller
             'public_key' => $this->publicKey,
             'reference' => $reference,
             'email' => $user->email,
-            'amount' => (int) round($data['amount'] * 100),
+            'amount' => (int) round($amount * 100),
         ]);
     }
 
     public function initializeMobileMoney(Request $request): JsonResponse
     {
+        $request->merge(['amount' => is_numeric($request->input('amount')) ? (float) $request->input('amount') : $request->input('amount')]);
         $data = $request->validate([
-            'amount' => 'required|numeric|in:120',
+            'amount' => ['required', 'numeric', Rule::in([70, 100, 120])],
             'phone' => 'required|string',
         ]);
+        $amount = (float) $data['amount'];
 
         if (!$this->courtneyApiKey || !$this->courtneyApiSecret || !$this->courtneyAccountId) {
             Log::error('CourtneyTech is not configured: COURTNEY_API_KEY, COURTNEY_API_SECRET, or COURTNEY_ACCOUNT_ID is missing.');
@@ -100,7 +105,7 @@ class WalletController extends Controller
         $transaction = Transaction::create([
             'user_id' => $user->id,
             'type' => 'deposit',
-            'amount' => $data['amount'],
+            'amount' => $amount,
             'status' => 'pending',
             'gateway' => 'courtneytech',
             'reference' => $reference,
@@ -117,7 +122,7 @@ class WalletController extends Controller
                 'json' => [
                     'payment_account_id' => (int) $this->courtneyAccountId,
                     'phone' => $phone,
-                    'amount' => (int) round($data['amount']),
+                    'amount' => (int) round($amount),
                     'reference' => $reference,
                     'description' => 'Wallet topup',
                 ],
