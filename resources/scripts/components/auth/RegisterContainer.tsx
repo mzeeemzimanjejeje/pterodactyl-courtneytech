@@ -38,7 +38,7 @@ const RegisterContainer = ({ history }: RouteComponentProps) => {
         }
 
         const { country, ...accountValues } = values;
-        register({ ...accountValues, country_code: selectedCountry.code })
+        register({ ...accountValues, countryCode: selectedCountry.code })
             .then((response) => {
                 if (response.complete) {
                     // @ts-expect-error this is valid

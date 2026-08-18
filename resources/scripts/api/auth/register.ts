@@ -12,6 +12,7 @@ export interface RegisterData {
     nameLast: string;
     password: string;
     passwordConfirmation: string;
+    countryCode: string;
 }
 
 export default ({
@@ -21,6 +22,7 @@ export default ({
     nameLast,
     password,
     passwordConfirmation,
+    countryCode,
 }: RegisterData): Promise<RegisterResponse> => {
     return new Promise((resolve, reject) => {
         http.get('/sanctum/csrf-cookie')
@@ -32,6 +34,7 @@ export default ({
                     name_last: nameLast,
                     password,
                     password_confirmation: passwordConfirmation,
+                    country_code: countryCode,
                 })
             )
             .then((response) => {

@@ -37,6 +37,22 @@ class AccountController extends ClientApiController
     }
 
     /**
+     * Update the authenticated user's country for country-aware store pricing.
+     */
+    public function updateCountry(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'country_code' => ['required', 'string', 'size:2', 'regex:/^[A-Za-z]{2}$/'],
+        ]);
+
+        $user = $this->updateService->handle($request->user(), [
+            'country_code' => strtoupper($data['country_code']),
+        ]);
+
+        return new JsonResponse(['country_code' => $user->country_code]);
+    }
+
+    /**
      * Update the authenticated user's email address.
      */
     public function updateEmail(UpdateEmailRequest $request): JsonResponse

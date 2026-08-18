@@ -9,7 +9,7 @@ import http from '@/api/http';
 import tw from 'twin.macro';
 import { useFlashKey } from '@/plugins/useFlash';
 import FlashMessageRender from '@/components/FlashMessageRender';
-import CustomBuildContainer from '@/components/dashboard/CustomBuildContainer';
+import { countryOptions } from '@/lib/countries';
 
 interface Plan {
     id: number;
@@ -75,19 +75,26 @@ export default () => {
     const [selectedEggId, setSelectedEggId] = useState<number | null>(null);
     const [serverName, setServerName] = useState('');
     const [phone, setPhone] = useState('');
+    const [countryCode, setCountryCode] = useState<string | null>(null);
     const [purchasing, setPurchasing] = useState(false);
     const [errorDialog, setErrorDialog] = useState<{ title: string; message: string } | null>(null);
-    const [tab, setTab] = useState<'plans' | 'custom'>('plans');
+    const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
     const { clearFlashes, clearAndAddHttpError } = useFlashKey('account:store');
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         clearFlashes();
-        Promise.all([http.get('/account/store/plans'), http.get('/account/store/custom/options')])
-            .then(([plansResponse, optionsResponse]) => {
+        Promise.all([
+            http.get('/account/store/plans'),
+            http.get('/account/store/custom/options'),
+            http.get('/api/client/account'),
+        ])
+            .then(([plansResponse, optionsResponse, accountResponse]) => {
                 setPlans(plansResponse.data);
+                setSelectedPlanId(plansResponse.data?.[0]?.id || null);
                 setNests(optionsResponse.data.nests || []);
                 setEggs(optionsResponse.data.eggs || []);
+                setCountryCode(accountResponse.data?.attributes?.country_code || null);
             })
             .catch(clearAndAddHttpError);
         return () => {
@@ -130,13 +137,19 @@ export default () => {
     };
 
     const onConfirmPurchase = async () => {
-        if (!selected || !serverName.trim() || !selectedNestId || !selectedEggId) {
-            setErrorDialog({ title: 'Missing selection', message: 'Enter a server name and select a Nest and Egg.' });
+        if (!selected || !serverName.trim() || !selectedNestId || !selectedEggId || !countryCode) {
+            setErrorDialog({
+                title: 'Missing selection',
+                message: !countryCode
+                    ? 'Select your country before purchasing a server.'
+                    : 'Enter a server name and select a Nest and Egg.',
+            });
             return;
         }
         setPurchasing(true);
         clearFlashes();
         try {
+            await http.put('/api/client/account/country', { country_code: countryCode });
             const { data } = await http.post('/account/store/payment/initialize', {
                 server_name: serverName.trim(),
                 plan_id: selected.id,
@@ -149,6 +162,7 @@ export default () => {
                 backups: selected.backups,
                 allocations: selected.allocations,
                 phone: phone.trim() || undefined,
+                country_code: countryCode,
             });
             if (data.gateway === 'courtneytech') {
                 const result = await poll(data.reference);
@@ -179,31 +193,29 @@ export default () => {
     return (
         <PageContentBlock title={'Available Servers'}>
             <FlashMessageRender byKey={'account:store'} css={tw`mb-4`} />
-            <div css={tw`flex gap-2 mb-6`}>
-                {(['plans', 'custom'] as const).map((item) => (
-                    <button
-                        key={item}
-                        onClick={() => setTab(item)}
-                        css={[
-                            tw`px-4 py-2 rounded-lg text-sm font-medium border`,
-                            tab === item
-                                ? tw`bg-cyan-600 border-cyan-600 text-white`
-                                : tw`bg-neutral-900 border-neutral-600 text-neutral-300 hover:border-neutral-400`,
-                        ]}
-                    >
-                        {item === 'plans' ? 'Fixed Plans' : 'Build Your Own'}
-                    </button>
-                ))}
-            </div>
-            {tab === 'custom' && <CustomBuildContainer />}
-            {tab === 'plans' &&
-                (!plans ? (
+            {!plans ? (
                     <Spinner centered size={'large'} />
                 ) : plans.length === 0 ? (
                     <p css={tw`text-sm text-neutral-400`}>No plans are available for purchase right now.</p>
                 ) : (
-                    <div css={tw`grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4`}>
-                        {plans.map((plan) => (
+                    <>
+                        <label css={tw`block max-w-xl text-sm text-neutral-300 mb-5`}>
+                            Select server plan
+                            <select
+                                value={selectedPlanId || ''}
+                                onChange={(event) => setSelectedPlanId(Number(event.target.value) || null)}
+                                css={tw`mt-2 w-full rounded bg-neutral-900 border border-neutral-600 px-3 py-2 text-neutral-100`}
+                            >
+                                <option value=''>Choose 1 GB to Unlimited</option>
+                                {plans.map((plan) => (
+                                    <option key={plan.id} value={plan.id}>
+                                        {plan.name} — {plan.currency} {parseFloat(plan.price).toFixed(2)} / {plan.billing_period}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <div css={tw`grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4`}>
+                        {plans.filter((plan) => plan.id === selectedPlanId).map((plan) => (
                             <div
                                 key={plan.id}
                                 css={[
@@ -268,8 +280,9 @@ export default () => {
                                 </Button>
                             </div>
                         ))}
-                    </div>
-                ))}
+                        </div>
+                    </>
+                )}
             <Dialog.Confirm
                 open={!!selected && !purchasing}
                 onClose={() => setSelected(null)}
@@ -280,6 +293,21 @@ export default () => {
                 {selected && (
                     <>
                         <label css={tw`block text-sm text-neutral-300`}>
+                            Country (required)
+                            <select
+                                value={countryCode || ''}
+                                onChange={(event) => setCountryCode(event.target.value || null)}
+                                css={tw`mt-2 w-full rounded bg-neutral-900 border border-neutral-600 px-3 py-2 text-neutral-100`}
+                            >
+                                <option value=''>Select your country</option>
+                                {countryOptions.map(({ code, name }) => (
+                                    <option key={code} value={code}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label css={tw`block text-sm text-neutral-300 mt-4`}>
                             Server name
                             <Input
                                 name={'server_name'}

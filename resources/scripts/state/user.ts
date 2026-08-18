@@ -5,6 +5,7 @@ export interface UserData {
     uuid: string;
     username: string;
     email: string;
+    countryCode?: string | null;
     language: string;
     rootAdmin: boolean;
     useTotp: boolean;
