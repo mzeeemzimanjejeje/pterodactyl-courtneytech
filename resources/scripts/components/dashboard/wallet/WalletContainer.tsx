@@ -92,7 +92,7 @@ export default () => {
     const location = useLocation();
     const query = new URLSearchParams(location.search);
     const requestedAmount = Number(query.get('amount') || query.get('topup_amount'));
-    const suggestedAmount = [70, 100, 120, 150].includes(requestedAmount) ? requestedAmount : 120;
+    const suggestedAmount = [70, 100, 120, 130, 150].includes(requestedAmount) ? requestedAmount : 120;
     const suggestedMethod: PaymentMethod = suggestedAmount === 150 ? 'card' : 'phone';
     const [data, setData] = useState<WalletData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -271,7 +271,10 @@ export default () => {
                         initialValues={{ method: suggestedMethod, amount: suggestedAmount, phone: '' } as Values}
                         validationSchema={object().shape({
                             amount: number()
-                                .oneOf([70, 100, 120, 150], 'Choose a valid top-up amount: KSh 70, 100, 120, or 150.')
+                                .oneOf(
+                                    [70, 100, 120, 130, 150],
+                                    'Choose a valid top-up amount: KSh 70, 100, 120, 130, or 150.'
+                                )
                                 .required('Please enter an amount.'),
                             phone: string().when('method', {
                                 is: 'phone',

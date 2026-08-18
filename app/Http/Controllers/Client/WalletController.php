@@ -55,7 +55,7 @@ class WalletController extends Controller
     {
         $request->merge(['amount' => is_numeric($request->input('amount')) ? (float) $request->input('amount') : $request->input('amount')]);
         $data = $request->validate([
-            'amount' => ['required', 'numeric', Rule::in([150])],
+            'amount' => ['required', 'numeric', Rule::in([100, 130, 150])],
         ]);
         $amount = (float) $data['amount'];
 
