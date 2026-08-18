@@ -8,6 +8,7 @@ import Field from '@/components/elements/Field';
 import tw from 'twin.macro';
 import Button from '@/components/elements/Button';
 import useFlash from '@/plugins/useFlash';
+import { countryOptions } from '@/lib/countries';
 
 interface Values {
     email: string;
@@ -16,6 +17,7 @@ interface Values {
     nameLast: string;
     password: string;
     passwordConfirmation: string;
+    country: string;
 }
 
 const RegisterContainer = ({ history }: RouteComponentProps) => {
@@ -28,7 +30,15 @@ const RegisterContainer = ({ history }: RouteComponentProps) => {
     const onSubmit = (values: Values, { setSubmitting }: FormikHelpers<Values>) => {
         clearFlashes();
 
-        register(values)
+        const selectedCountry = countryOptions.find(({ name }) => name === values.country);
+        if (!selectedCountry) {
+            setSubmitting(false);
+            clearAndAddHttpError({ error: new Error('Please select a valid country.') });
+            return;
+        }
+
+        const { country, ...accountValues } = values;
+        register({ ...accountValues, country_code: selectedCountry.code })
             .then((response) => {
                 if (response.complete) {
                     // @ts-expect-error this is valid
@@ -56,6 +66,7 @@ const RegisterContainer = ({ history }: RouteComponentProps) => {
                 nameLast: '',
                 password: '',
                 passwordConfirmation: '',
+                country: '',
             }}
             validationSchema={object().shape({
                 email: string().email('Please enter a valid email address.').required('An email is required.'),
@@ -65,9 +76,10 @@ const RegisterContainer = ({ history }: RouteComponentProps) => {
                 password: string()
                     .min(8, 'Password must be at least 8 characters.')
                     .required('A password is required.'),
-                passwordConfirmation: string()
+                    passwordConfirmation: string()
                     .oneOf([ref('password'), null], 'Passwords must match.')
                     .required('Please confirm your password.'),
+                country: string().required('Your country is required.'),
             })}
         >
             {({ isSubmitting, submitForm }) => (
@@ -98,6 +110,22 @@ const RegisterContainer = ({ history }: RouteComponentProps) => {
                         <div css={tw`w-1/2`}>
                             <Field light type={'text'} label={'Last Name'} name={'nameLast'} disabled={isSubmitting} />
                         </div>
+                    </div>
+                    <div css={tw`mt-6`}>
+                        <Field
+                            light
+                            type={'text'}
+                            label={'Country'}
+                            name={'country'}
+                            list={'country-options'}
+                            placeholder={'Search for your country'}
+                            disabled={isSubmitting}
+                        />
+                        <datalist id={'country-options'}>
+                            {countryOptions.map(({ code, name }) => (
+                                <option key={code} value={name} />
+                            ))}
+                        </datalist>
                     </div>
                     <div css={tw`mt-6`}>
                         <Field light type={'password'} label={'Password'} name={'password'} disabled={isSubmitting} />

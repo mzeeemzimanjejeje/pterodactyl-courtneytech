@@ -53,7 +53,7 @@ class WalletController extends Controller
     public function initializeCard(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'amount' => 'required|numeric|min:10',
+            'amount' => 'required|numeric|in:150',
         ]);
 
         $user = auth()->user();
@@ -81,7 +81,7 @@ class WalletController extends Controller
     public function initializeMobileMoney(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'amount' => 'required|numeric|min:10',
+            'amount' => 'required|numeric|in:120',
             'phone' => 'required|string',
         ]);
 

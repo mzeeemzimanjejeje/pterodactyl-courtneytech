@@ -4,6 +4,7 @@ import { faEthernet, faHdd, faMemory, faMicrochip, faServer } from '@fortawesome
 import { Link } from 'react-router-dom';
 import { Server } from '@/api/server/getServer';
 import getServerResourceUsage, { ServerPowerState, ServerStats } from '@/api/server/getServerResourceUsage';
+import http from '@/api/http';
 import { bytesToString, ip, mbToBytes } from '@/lib/formatters';
 import tw from 'twin.macro';
 import GreyRowBox from '@/components/elements/GreyRowBox';
@@ -53,6 +54,8 @@ export default ({ server, className }: { server: Server; className?: string }) =
     const interval = useRef<Timer>(null) as React.MutableRefObject<Timer>;
     const [isSuspended, setIsSuspended] = useState(server.status === 'suspended');
     const [stats, setStats] = useState<ServerStats | null>(null);
+    const [renewing, setRenewing] = useState(false);
+    const [renewalMessage, setRenewalMessage] = useState<string | null>(null);
 
     const getStats = () =>
         getServerResourceUsage(server.uuid)
@@ -98,6 +101,30 @@ export default ({ server, className }: { server: Server; className?: string }) =
                     <p css={tw`text-lg break-words`}>{server.name}</p>
                     {!!server.description && (
                         <p css={tw`text-sm text-neutral-300 break-words line-clamp-2`}>{server.description}</p>
+                    )}
+                    {server.renewalEnabled && (
+                        <div css={tw`mt-2 flex items-center gap-2`}>
+                            <button
+                                type={'button'}
+                                disabled={renewing}
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    setRenewing(true);
+                                    setRenewalMessage(null);
+                                    http.post(`/account/servers/${server.internalId}/renew`)
+                                        .then(({ data }) => setRenewalMessage(data.message || 'Renewed for 30 days.'))
+                                        .catch((error) =>
+                                            setRenewalMessage(error?.response?.data?.error || 'Renewal failed.')
+                                        )
+                                        .finally(() => setRenewing(false));
+                                }}
+                                css={tw`rounded bg-cyan-700 px-2 py-1 text-xs text-white hover:bg-cyan-600 disabled:opacity-50`}
+                            >
+                                {renewing ? 'Renewing…' : 'Renew'}
+                            </button>
+                            {renewalMessage && <span css={tw`text-xs text-neutral-400`}>{renewalMessage}</span>}
+                        </div>
                     )}
                 </div>
             </div>

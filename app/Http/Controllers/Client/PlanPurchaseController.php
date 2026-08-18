@@ -65,7 +65,7 @@ class PlanPurchaseController extends Controller
             'extra_databases' => 0,
             'extra_backups' => 0,
             'extra_allocations' => 0,
-        ], array_filter($addons, fn ($v) => $v !== null));
+        ], array_filter($purchase, fn ($v) => $v !== null));
 
         $user = auth()->user();
 
@@ -137,6 +137,12 @@ class PlanPurchaseController extends Controller
                 'error' => 'Unable to provision a server right now. No charge was made — please try again shortly or contact support.',
             ], 500);
         }
+
+        $server->forceFill([
+            'plan_id' => $plan->id,
+            'next_renewal_at' => now()->addDays(30),
+            'renewal_enabled' => true,
+        ])->save();
 
         \DB::transaction(function () use ($user, $plan, $server, $totalPrice, $addonCost) {
             $user->decrement('wallet_balance', $totalPrice);

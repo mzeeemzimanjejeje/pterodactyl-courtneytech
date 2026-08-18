@@ -10,10 +10,10 @@ On top of that core, this fork adds a **self-service billing and monetization la
 
 - **Wallet system** — every user has a wallet balance (`wallet_balance`) that can be topped up and spent on hosting plans.
 - **Transactions ledger** — every deposit and charge is recorded (`pending` / `success` / `failed`) with a unique reference, so payment history is fully auditable per user.
-- **Paystack payment gateway integration**:
-  - Card payments via Paystack's standard charge flow.
-  - **M-Pesa STK Push** via Paystack's mobile money charge endpoint — the primary payment method for the Kenyan market this fork targets.
-  - Webhook endpoint with **HMAC-SHA512 signature verification** to confirm payments server-to-server.
+- **Payment gateway integration**:
+  - **CourtneyTech** M-Pesa STK Push for Kenyan mobile-money top-ups.
+  - Paystack card payments, including server-side transaction verification.
+  - Paystack webhook endpoint with **HMAC-SHA512 signature verification**.
   - Idempotent verify-and-credit flow wrapped in a database transaction, so a payment can never be credited twice.
 - **Multi-currency support** — admins can define currencies with exchange rates relative to a base currency (KES by default), each toggleable active/inactive.
 - **Resource pricing** — configurable per-unit pricing for CPU, memory, disk, etc., independent of fixed plans.
@@ -43,8 +43,90 @@ On top of that core, this fork adds a **self-service billing and monetization la
 
 - **Backend**: PHP 8.2+/8.3, Laravel
 - **Frontend**: React, TypeScript, Tailwind CSS
-- **Payments**: Paystack (card + M-Pesa mobile money)
+- **Payments**: CourtneyTech (Kenya M-Pesa) and Paystack (card payments)
 - **Deployment**: Docker-isolated game servers via Wings, Nginx, Certbot, PM2 (or equivalent process manager) for the queue worker
+
+## Installation
+
+These commands assume Ubuntu 22.04/24.04, PHP 8.2 or 8.3, MySQL or MariaDB, Redis, Nginx, Node.js, and Composer are already installed. For the complete upstream server requirements, see the [official Pterodactyl installation guide](https://pterodactyl.io/panel/1.0/getting_started.html).
+
+Clone the repository and install the backend dependencies:
+
+```bash
+git clone https://github.com/mzeeemzimanjejeje/pterodactyl-courtneytech.git
+cd pterodactyl-courtneytech
+composer install --no-dev --optimize-autoloader
+cp .env.example .env
+php artisan key:generate --force
+```
+
+Configure the database, cache, mail, application URL, and queue settings in `.env`, then initialize the application:
+
+```bash
+php artisan migrate --seed --force
+php artisan storage:link
+php artisan config:cache
+php artisan view:cache
+```
+
+Install and build the frontend assets:
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+```
+
+Set the correct ownership for the application directory and storage paths, then run the queue worker under Supervisor or another process manager:
+
+```bash
+sudo chown -R www-data:www-data /var/www/pterodactyl
+sudo chmod -R 755 storage bootstrap/cache
+php artisan queue:work --queue=high,standard,low --sleep=3 --tries=3
+```
+
+### Payment environment configuration
+
+Add these variables to the production `.env` or deployment secret store. **Never commit live credentials to GitHub.**
+
+```dotenv
+PAYSTACK_PUBLIC_KEY=your_paystack_public_key
+PAYSTACK_SECRET_KEY=your_paystack_secret_key
+COURTNEY_BASE_URL=https://courtneytech.xyz/api
+COURTNEY_API_KEY=your_courtney_api_key
+COURTNEY_API_SECRET=your_courtney_api_secret
+COURTNEY_ACCOUNT_ID=9
+```
+
+After changing payment variables, refresh Laravel configuration:
+
+```bash
+php artisan config:clear
+php artisan config:cache
+```
+
+The Paystack Dashboard webhook URL is:
+
+```text
+https://YOUR_PANEL_DOMAIN/webhooks/paystack
+```
+
+Kenyan M-Pesa payments use CourtneyTech’s `/v2/stkpush` and `/v2/status` endpoints. Card payments use Paystack’s hosted inline card flow and server-side verification. International card acceptance depends on Paystack enabling international payments for the merchant account and supported KES settlement; verify that setting in the Paystack Dashboard.
+
+### Updating the application
+
+```bash
+cd /var/www/pterodactyl
+git pull origin main
+composer install --no-dev --optimize-autoloader
+pnpm install --frozen-lockfile
+pnpm build
+php artisan migrate --force
+php artisan optimize:clear
+php artisan config:cache
+sudo systemctl restart nginx
+sudo supervisorctl restart pterodactyl-worker:*
+```
 
 ## Documentation
 

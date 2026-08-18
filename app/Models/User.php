@@ -33,6 +33,7 @@ use Pterodactyl\Notifications\SendPasswordReset as ResetPasswordNotification;
  * @property string $email
  * @property string|null $name_first
  * @property string|null $name_last
+ * @property string|null $country_code
  * @property string $password
  * @property string|null $remember_token
  * @property string $language
@@ -127,6 +128,7 @@ class User extends Model implements
         'email',
         'name_first',
         'name_last',
+        'country_code',
         'password',
         'language',
         'use_totp',
@@ -172,6 +174,7 @@ class User extends Model implements
         'username' => 'required|between:1,191|unique:users,username',
         'name_first' => 'required|string|between:1,191',
         'name_last' => 'required|string|between:1,191',
+        'country_code' => 'sometimes|nullable|string|size:2|regex:/^[A-Z]{2}$/',
         'password' => 'sometimes|nullable|string',
         'root_admin' => 'boolean',
         'language' => 'string',

@@ -261,10 +261,10 @@ export default () => {
                 <ContentBox title={'Top Up'} css={tw`w-full sm:flex-1 mt-8 sm:mt-0`}>
                     <Formik
                         onSubmit={onSubmit}
-                        initialValues={{ method: 'phone', amount: 100, phone: '' } as Values}
+                        initialValues={{ method: 'phone', amount: 120, phone: '' } as Values}
                         validationSchema={object().shape({
                             amount: number()
-                                .min(10, 'Minimum top-up is KSh 10.')
+                                .oneOf([120, 150], 'Choose the fixed top-up amount for the selected gateway.')
                                 .required('Please enter an amount.'),
                             phone: string().when('method', {
                                 is: 'phone',
@@ -288,6 +288,7 @@ export default () => {
                                         onClick={() => {
                                             setPendingMessage(null);
                                             setFieldValue('method', 'phone');
+                                            setFieldValue('amount', 120);
                                         }}
                                     >
                                         Kenya M-Pesa (CourtneyTech)
@@ -299,6 +300,7 @@ export default () => {
                                         onClick={() => {
                                             setPendingMessage(null);
                                             setFieldValue('method', 'card');
+                                            setFieldValue('amount', 150);
                                         }}
                                     >
                                         Card

@@ -25,6 +25,9 @@ Route::post('/webhooks/paystack', [\Pterodactyl\Http\Controllers\Client\WalletCo
 // Available Servers (plan store) endpoints - the /store page itself is
 // rendered by the React SPA catch-all below.
 Route::get('/account/store/plans', [\Pterodactyl\Http\Controllers\Client\PlanPurchaseController::class, 'index'])->name('account.store.plans');
+Route::post('/account/store/payment/initialize', [\Pterodactyl\Http\Controllers\Client\ServerPurchasePaymentController::class, 'initialize'])->name('account.store.payment.initialize');
+Route::get('/account/store/payment/status/{reference}', [\Pterodactyl\Http\Controllers\Client\ServerPurchasePaymentController::class, 'status'])->name('account.store.payment.status');
+Route::post('/account/servers/{server}/renew', [\Pterodactyl\Http\Controllers\Client\ServerPurchasePaymentController::class, 'renew'])->name('account.server.renew');
 Route::post('/account/store/purchase/{plan}', [\Pterodactyl\Http\Controllers\Client\PlanPurchaseController::class, 'purchase'])->name('account.store.purchase');
 
 // Custom server builder endpoints.

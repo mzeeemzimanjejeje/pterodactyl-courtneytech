@@ -60,6 +60,9 @@ export interface Server {
     isTransferring: boolean;
     variables: ServerEggVariable[];
     allocations: Allocation[];
+    renewalEnabled: boolean;
+    nextRenewalAt: string | null;
+    renewalPrice: number | null;
 }
 
 export const rawDataToServerObject = ({ attributes: data }: FractalResponseData): Server => ({
@@ -89,6 +92,9 @@ export const rawDataToServerObject = ({ attributes: data }: FractalResponseData)
     allocations: ((data.relationships?.allocations as FractalResponseList | undefined)?.data || []).map(
         rawDataToServerAllocation
     ),
+    renewalEnabled: Boolean(data.renewal_enabled),
+    nextRenewalAt: data.next_renewal_at || null,
+    renewalPrice: data.renewal_price ?? null,
 });
 
 export default (uuid: string): Promise<[Server, string[]]> => {

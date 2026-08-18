@@ -1,25 +1,28 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import Spinner from '@/components/elements/Spinner';
 import Button from '@/components/elements/Button';
 import { Dialog } from '@/components/elements/dialog';
 import http from '@/api/http';
 import tw from 'twin.macro';
-import { useFlashKey } from '@/plugins/useFlash';
-import FlashMessageRender from '@/components/FlashMessageRender';
 
+declare global {
+    interface Window {
+        PaystackPop?: { setup: (options: Record<string, any>) => { openIframe: () => void } };
+    }
+}
 interface PriceEntry {
     price_kes: number;
     unit_label: string;
 }
-
 interface Options {
-    eggs: Record<string, { id: number; name: string }[]>;
+    nests: { id: number; name: string }[];
+    eggs: { id: number; nest_id: number; name: string }[];
     prices: Partial<Record<'ram' | 'disk' | 'cpu' | 'database' | 'backup' | 'allocation', PriceEntry>>;
     price_cap: number;
 }
-
 interface Config {
+    nestId: number | null;
     eggId: number | null;
     memory: number;
     disk: number;
@@ -28,8 +31,8 @@ interface Config {
     backups: number;
     allocations: number;
 }
-
 const DEFAULT_CONFIG: Config = {
+    nestId: null,
     eggId: null,
     memory: 512,
     disk: 1024,
@@ -38,147 +41,166 @@ const DEFAULT_CONFIG: Config = {
     backups: 0,
     allocations: 1,
 };
+const loadPaystackScript = (): Promise<void> =>
+    new Promise((resolve, reject) => {
+        if (window.PaystackPop) return resolve();
+        const existing = document.getElementById('paystack-inline-js') as HTMLScriptElement | null;
+        if (existing) {
+            existing.addEventListener('load', () => resolve());
+            existing.addEventListener('error', () => reject(new Error('Failed to load Paystack.')));
+            return;
+        }
+        const script = document.createElement('script');
+        script.id = 'paystack-inline-js';
+        script.src = 'https://js.paystack.co/v1/inline.js';
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Failed to load Paystack.'));
+        document.head.appendChild(script);
+    });
 
 export default () => {
     const history = useHistory();
     const [options, setOptions] = useState<Options | null>(null);
     const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
+    const [serverName, setServerName] = useState('');
+    const [phone, setPhone] = useState('');
     const [purchasing, setPurchasing] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
-    const [errorDialog, setErrorDialog] = useState<{ message: string; showTopUp: boolean } | null>(null);
-    const { clearFlashes, clearAndAddHttpError } = useFlashKey('account:custom-build');
-
+    const [error, setError] = useState<string | null>(null);
+    const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
     useEffect(() => {
-        clearFlashes();
         http.get('/account/store/custom/options')
-            .then((response) => {
-                setOptions(response.data);
-                const firstNest = Object.values(response.data.eggs)[0] as { id: number; name: string }[] | undefined;
-                if (firstNest && firstNest.length > 0) {
-                    setConfig((c) => ({ ...c, eggId: firstNest[0].id }));
-                }
+            .then(({ data }) => {
+                setOptions(data);
+                const nest = data.nests?.[0];
+                const egg = data.eggs?.find((item: any) => item.nest_id === nest?.id);
+                if (nest && egg) setConfig((c) => ({ ...c, nestId: nest.id, eggId: egg.id }));
             })
-            .catch((error) => clearAndAddHttpError(error));
+            .catch((e) => setError(e?.response?.data?.error || 'Unable to load custom server options.'));
+        return () => {
+            if (timer.current) clearTimeout(timer.current);
+        };
     }, []);
-
-    const priceOf = (key: keyof Options['prices']): number => options?.prices[key]?.price_kes ?? 0;
-
-    const total = useMemo(() => {
-        if (!options) return 0;
-        const t =
-            (config.memory / 1024) * priceOf('ram') +
-            (config.disk / 1024) * priceOf('disk') +
-            (config.cpu / 100) * priceOf('cpu') +
-            config.databases * priceOf('database') +
-            config.backups * priceOf('backup') +
-            config.allocations * priceOf('allocation');
-        return Math.round(t * 100) / 100;
-    }, [config, options]);
-
-    const cap = options?.price_cap ?? 0;
-
-    const clampField = (field: keyof Config, rawValue: number, unitPrice: number, scale: number): number => {
-        if (!options || cap <= 0 || unitPrice <= 0) return Math.max(0, rawValue);
-
-        const otherFieldsCost = total - ((config[field] as number) / scale) * unitPrice;
-        const remaining = Math.max(0, cap - otherFieldsCost);
-        const maxUnits = (remaining / unitPrice) * scale;
-
-        return Math.max(0, Math.min(rawValue, Math.floor(maxUnits)));
-    };
-
-    const updateField = (field: keyof Config, value: number) => {
-        setConfig((c) => {
-            const next = { ...c };
-            switch (field) {
-                case 'memory':
-                    next.memory = clampField('memory', value, priceOf('ram'), 1024);
-                    break;
-                case 'disk':
-                    next.disk = clampField('disk', value, priceOf('disk'), 1024);
-                    break;
-                case 'cpu':
-                    next.cpu = clampField('cpu', value, priceOf('cpu'), 100);
-                    break;
-                case 'databases':
-                    next.databases = clampField('databases', value, priceOf('database'), 1);
-                    break;
-                case 'backups':
-                    next.backups = clampField('backups', value, priceOf('backup'), 1);
-                    break;
-                case 'allocations':
-                    next.allocations = Math.max(1, clampField('allocations', value, priceOf('allocation'), 1) || 1);
-                    break;
-            }
-            return next;
+    const priceOf = (key: keyof Options['prices']) => options?.prices[key]?.price_kes ?? 0;
+    const total = useMemo(
+        () =>
+            options
+                ? Math.round(
+                      ((config.memory / 1024) * priceOf('ram') +
+                          (config.disk / 1024) * priceOf('disk') +
+                          (config.cpu / 100) * priceOf('cpu') +
+                          config.databases * priceOf('database') +
+                          config.backups * priceOf('backup') +
+                          config.allocations * priceOf('allocation')) *
+                          100
+                  ) / 100
+                : 0,
+        [config, options]
+    );
+    const updateField = (field: keyof Config, value: number) =>
+        setConfig((c) => ({ ...c, [field]: field === 'allocations' ? Math.max(1, value) : Math.max(0, value) }));
+    const poll = (reference: string, attempt = 0): Promise<any> =>
+        new Promise((resolve) => {
+            http.get(`/account/store/payment/status/${reference}`)
+                .then(({ data }) => {
+                    if (['success', 'failed', 'confirmed_provisioning_failed'].includes(data.status) || attempt >= 40)
+                        return resolve(data);
+                    timer.current = setTimeout(() => poll(reference, attempt + 1).then(resolve), 3000);
+                })
+                .catch(() => {
+                    if (attempt >= 40) return resolve({ status: 'failed' });
+                    timer.current = setTimeout(() => poll(reference, attempt + 1).then(resolve), 3000);
+                });
         });
+    const finish = (data: any) => {
+        setPurchasing(false);
+        setConfirmOpen(false);
+        if (data.status === 'success' && data.server_id) history.push(`/server/${data.server_id}`);
+        else
+            setError(
+                data.status === 'confirmed_provisioning_failed'
+                    ? 'Payment was confirmed, but provisioning failed. Please contact support.'
+                    : 'We could not confirm this payment.'
+            );
     };
-
-    const onPurchase = () => {
-        if (!config.eggId) return;
-
+    const onPurchase = async () => {
+        if (!config.nestId || !config.eggId || !serverName.trim()) return;
         setPurchasing(true);
-        clearFlashes();
-
-        http.post('/account/store/custom/purchase', {
-            egg_id: config.eggId,
-            memory: config.memory,
-            disk: config.disk,
-            cpu: config.cpu,
-            databases: config.databases,
-            backups: config.backups,
-            allocations: config.allocations,
-        })
-            .then((response) => {
-                if (response.data?.server_id) {
-                    history.push(`/server/${response.data.server_id}`);
-                    return;
-                }
-                setPurchasing(false);
-                setConfirmOpen(false);
-            })
-            .catch((error) => {
-                setPurchasing(false);
-                setConfirmOpen(false);
-                const message = error?.response?.data?.error;
-                if (message) {
-                    setErrorDialog({ message, showTopUp: message.toLowerCase().includes('insufficient') });
-                } else {
-                    clearAndAddHttpError(error);
-                }
+        setError(null);
+        try {
+            const { data } = await http.post('/account/store/payment/initialize', {
+                server_name: serverName.trim(),
+                nest_id: config.nestId,
+                egg_id: config.eggId,
+                memory: config.memory,
+                disk: config.disk,
+                cpu: config.cpu,
+                databases: config.databases,
+                backups: config.backups,
+                allocations: config.allocations,
+                phone: phone.trim() || undefined,
             });
+            if (data.gateway === 'courtneytech') {
+                finish(await poll(data.reference));
+                return;
+            }
+            await loadPaystackScript();
+            if (!window.PaystackPop) throw new Error('Paystack failed to load. Please refresh and try again.');
+            window.PaystackPop.setup({
+                key: data.public_key,
+                email: data.email,
+                amount: data.amount,
+                currency: 'KES',
+                ref: data.reference,
+                channels: ['card'],
+                callback: (response: { reference?: string }) => poll(response.reference || data.reference).then(finish),
+                onClose: () => setPurchasing(false),
+            }).openIframe();
+        } catch (e: any) {
+            setPurchasing(false);
+            setError(e?.response?.data?.error || e.message || 'Unable to initialize payment.');
+        }
     };
-
-    if (!options) {
-        return <Spinner centered size={'large'} />;
-    }
-
-    const usagePercent = cap > 0 ? Math.min(100, (total / cap) * 100) : 0;
-
+    if (!options) return <Spinner centered size={'large'} />;
+    const usagePercent = options.price_cap > 0 ? Math.min(100, (total / options.price_cap) * 100) : 0;
     return (
         <div>
-            <FlashMessageRender byKey={'account:custom-build'} css={tw`mb-4`} />
-
             <div css={tw`bg-neutral-800 border border-neutral-700 rounded-lg p-6`}>
                 <div css={tw`mb-5`}>
-                    <label css={tw`text-xs uppercase tracking-wide text-neutral-400 block mb-1`}>Game / Software</label>
+                    <label css={tw`text-xs uppercase tracking-wide text-neutral-400 block mb-1`}>Nest</label>
+                    <select
+                        css={tw`w-full bg-neutral-900 border border-neutral-600 rounded px-3 py-2 text-neutral-100 text-sm`}
+                        value={config.nestId ?? ''}
+                        onChange={(e) => {
+                            const nestId = Number(e.target.value);
+                            const egg = options.eggs.find((item) => item.nest_id === nestId);
+                            setConfig((c) => ({ ...c, nestId, eggId: egg?.id ?? null }));
+                        }}
+                    >
+                        {options.nests.map((nest) => (
+                            <option key={nest.id} value={nest.id}>
+                                {nest.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div css={tw`mb-5`}>
+                    <label css={tw`text-xs uppercase tracking-wide text-neutral-400 block mb-1`}>Egg / Game</label>
                     <select
                         css={tw`w-full bg-neutral-900 border border-neutral-600 rounded px-3 py-2 text-neutral-100 text-sm`}
                         value={config.eggId ?? ''}
                         onChange={(e) => setConfig((c) => ({ ...c, eggId: Number(e.target.value) }))}
                     >
-                        {Object.entries(options.eggs).map(([nestName, eggs]) => (
-                            <optgroup key={nestName} label={nestName}>
-                                {eggs.map((egg) => (
-                                    <option key={egg.id} value={egg.id}>
-                                        {egg.name}
-                                    </option>
-                                ))}
-                            </optgroup>
-                        ))}
+                        {options.eggs
+                            .filter((egg) => egg.nest_id === config.nestId)
+                            .map((egg) => (
+                                <option key={egg.id} value={egg.id}>
+                                    {egg.name}
+                                </option>
+                            ))}
                     </select>
                 </div>
-
                 <div css={tw`grid grid-cols-1 sm:grid-cols-2 gap-5`}>
                     <FieldInput
                         label={`Memory (MB) — KSh ${priceOf('ram')} per GB`}
@@ -217,66 +239,86 @@ export default () => {
                         onChange={(v) => updateField('backups', v)}
                     />
                 </div>
-
                 <div css={tw`mt-6 pt-5 border-t border-neutral-700`}>
                     <div css={tw`flex justify-between items-baseline mb-2`}>
                         <p css={tw`text-sm text-neutral-400`}>Total Price</p>
                         <p css={tw`text-2xl font-bold text-neutral-100`}>
                             KSh {total.toFixed(2)}
-                            {cap > 0 && <span css={tw`text-xs text-neutral-500 font-normal`}> / {cap.toFixed(2)} max</span>}
+                            {options.price_cap > 0 && (
+                                <span css={tw`text-xs text-neutral-500 font-normal`}>
+                                    {' '}
+                                    / {options.price_cap.toFixed(2)} max
+                                </span>
+                            )}
                         </p>
                     </div>
-                    {cap > 0 && (
+                    {options.price_cap > 0 && (
                         <div css={tw`w-full h-2 bg-neutral-900 rounded-full overflow-hidden mb-5`}>
                             <div
-                                css={[tw`h-full bg-cyan-500 transition-all duration-150`, { width: `${usagePercent}%` }]}
+                                css={[
+                                    tw`h-full bg-cyan-500 transition-all duration-150`,
+                                    { width: `${usagePercent}%` },
+                                ]}
                             />
                         </div>
                     )}
-                    <Button onClick={() => setConfirmOpen(true)} disabled={!config.eggId || total <= 0}>
+                    <Button
+                        onClick={() => setConfirmOpen(true)}
+                        disabled={!config.nestId || !config.eggId || total <= 0}
+                    >
                         Buy This Configuration
                     </Button>
                 </div>
             </div>
-
             <Dialog.Confirm
                 open={confirmOpen && !purchasing}
                 onClose={() => setConfirmOpen(false)}
                 title={'Confirm Purchase'}
-                confirm={'Buy Now'}
+                confirm={'Pay and Create'}
                 onConfirmed={onPurchase}
             >
-                This will deduct KSh {total.toFixed(2)} from your wallet and immediately provision your custom
-                server.
+                <label css={tw`block text-sm text-neutral-300`}>
+                    Server name
+                    <input
+                        value={serverName}
+                        onChange={(e) => setServerName(e.target.value)}
+                        placeholder={'Enter a name for your server'}
+                        autoFocus
+                        css={tw`mt-2 w-full bg-neutral-900 border border-neutral-600 rounded px-3 py-2 text-neutral-100`}
+                    />
+                </label>
+                <label css={tw`block text-sm text-neutral-300 mt-4`}>
+                    Kenyan M-Pesa phone (required for Kenyan accounts)
+                    <input
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder={'0712345678'}
+                        css={tw`mt-2 w-full bg-neutral-900 border border-neutral-600 rounded px-3 py-2 text-neutral-100`}
+                    />
+                </label>
+                <p css={tw`text-sm text-neutral-300 mt-4`}>
+                    Your country determines the gateway. The server description will be “CREATED BY COURTNEY”.
+                </p>
             </Dialog.Confirm>
-
             {purchasing && (
-                <Dialog open title={'Provisioning your server'} onClose={() => undefined}>
+                <Dialog open title={'Processing payment'} onClose={() => undefined}>
                     <div css={tw`flex items-center gap-4`}>
                         <Spinner />
-                        <p css={tw`text-sm text-neutral-300`}>Please wait, this can take a few moments...</p>
+                        <p css={tw`text-sm text-neutral-300`}>
+                            Complete the payment and wait for server provisioning...
+                        </p>
                     </div>
                 </Dialog>
             )}
-
-            <Dialog open={!!errorDialog} onClose={() => setErrorDialog(null)} title={'Purchase Failed'}>
-                <p css={tw`text-sm text-neutral-300`}>{errorDialog?.message}</p>
+            <Dialog open={!!error} onClose={() => setError(null)} title={'Purchase Failed'}>
+                <p css={tw`text-sm text-neutral-300`}>{error}</p>
                 <Dialog.Footer>
-                    <button
-                        onClick={() => setErrorDialog(null)}
-                        css={tw`text-sm text-neutral-400 hover:text-neutral-200 mr-4`}
-                    >
-                        Close
-                    </button>
-                    {errorDialog?.showTopUp && (
-                        <Button onClick={() => history.push('/account/wallet')}>Top Up Now</Button>
-                    )}
+                    <Button onClick={() => setError(null)}>Close</Button>
                 </Dialog.Footer>
             </Dialog>
         </div>
     );
 };
-
 const FieldInput = ({
     label,
     value,

@@ -5,6 +5,7 @@ namespace Pterodactyl\Http\Controllers\Client;
 use Log;
 use Illuminate\Http\Request;
 use Pterodactyl\Models\Egg;
+use Pterodactyl\Models\Nest;
 use Pterodactyl\Models\Plan;
 use Pterodactyl\Models\Location;
 use Pterodactyl\Models\Transaction;
@@ -22,12 +23,24 @@ class CustomBuildController extends Controller
 
     public function options(): JsonResponse
     {
-        $eggs = Egg::with('nest')
+        $nests = Nest::query()
+            ->whereHas('eggs')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->values()
+            ->map(fn (Nest $nest) => ['id' => $nest->id, 'name' => $nest->name]);
+
+        $eggs = Egg::query()
+            ->whereIn('nest_id', $nests->pluck('id'))
             ->orderBy('nest_id')
             ->orderBy('name')
-            ->get()
-            ->groupBy(fn ($egg) => $egg->nest->name ?? 'Uncategorized')
-            ->map(fn ($group) => $group->map(fn ($egg) => ['id' => $egg->id, 'name' => $egg->name]));
+            ->get(['id', 'nest_id', 'name'])
+            ->values()
+            ->map(fn (Egg $egg) => [
+                'id' => $egg->id,
+                'nest_id' => $egg->nest_id,
+                'name' => $egg->name,
+            ]);
 
         $prices = ResourcePrice::where('is_active', true)
             ->whereNotNull('resource_key')
@@ -38,9 +51,23 @@ class CustomBuildController extends Controller
                 'unit_label' => $item->unit_label,
             ]);
 
+        // Keep the builder usable on installations where the optional pricing rows
+        // have not yet been created; administrators can override these values later.
+        if ($prices->isEmpty()) {
+            $prices = collect([
+                'ram' => ['price_kes' => 100.0, 'unit_label' => 'per GB'],
+                'disk' => ['price_kes' => 0.0, 'unit_label' => 'per GB'],
+                'cpu' => ['price_kes' => 0.0, 'unit_label' => 'per 100%'],
+                'database' => ['price_kes' => 0.0, 'unit_label' => 'each'],
+                'backup' => ['price_kes' => 0.0, 'unit_label' => 'each'],
+                'allocation' => ['price_kes' => 0.0, 'unit_label' => 'per port'],
+            ]);
+        }
+
         $cap = (float) (Plan::where('is_active', true)->max('price') ?? 0);
 
         return response()->json([
+            'nests' => $nests,
             'eggs' => $eggs,
             'prices' => $prices,
             'price_cap' => $cap,
@@ -63,6 +90,7 @@ class CustomBuildController extends Controller
     public function purchase(Request $request): JsonResponse
     {
         $data = $request->validate([
+            'nest_id' => 'required|integer|exists:nests,id',
             'egg_id' => 'required|integer|exists:eggs,id',
             'memory' => 'required|integer|min:0',
             'disk' => 'required|integer|min:0',
@@ -92,7 +120,14 @@ class CustomBuildController extends Controller
             return response()->json(['error' => 'Insufficient wallet balance. Please top up first.'], 422);
         }
 
-        $egg = Egg::query()->findOrFail($data['egg_id']);
+        $egg = Egg::query()
+            ->where('id', $data['egg_id'])
+            ->where('nest_id', $data['nest_id'])
+            ->first();
+
+        if (!$egg) {
+            return response()->json(['error' => 'The selected Egg does not belong to the selected Nest.'], 422);
+        }
         $dockerImage = is_array($egg->docker_images) && count($egg->docker_images) > 0
             ? array_values($egg->docker_images)[0]
             : null;
@@ -137,6 +172,12 @@ class CustomBuildController extends Controller
                 'error' => 'Unable to provision a server right now. No charge was made — please try again shortly or contact support.',
             ], 500);
         }
+
+        $server->forceFill([
+            'renewal_price' => $price,
+            'next_renewal_at' => now()->addDays(30),
+            'renewal_enabled' => true,
+        ])->save();
 
         \DB::transaction(function () use ($user, $price, $server) {
             $user->decrement('wallet_balance', $price);

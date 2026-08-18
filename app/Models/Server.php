@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Pterodactyl\Models\Traits\HasRealtimeIdentifier;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Pterodactyl\Models\Plan;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -182,6 +183,8 @@ class Server extends Model implements Identifiable
         'node_id' => 'integer',
         'skip_scripts' => 'boolean',
         'owner_id' => 'integer',
+        'plan_id' => 'integer',
+        'renewal_price' => 'decimal:2',
         'memory' => 'integer',
         'swap' => 'integer',
         'disk' => 'integer',
@@ -198,6 +201,8 @@ class Server extends Model implements Identifiable
         self::UPDATED_AT => 'datetime',
         'deleted_at' => 'datetime',
         'installed_at' => 'datetime',
+        'next_renewal_at' => 'datetime',
+        'renewal_enabled' => 'boolean',
     ];
 
     /**
@@ -225,6 +230,11 @@ class Server extends Model implements Identifiable
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<\Pterodactyl\Models\User, $this>
      */
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');

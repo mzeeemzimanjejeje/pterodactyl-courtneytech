@@ -33,6 +33,7 @@ class RegisterController extends AbstractLoginController
             'username' => ['required', 'between:1,191', 'unique:users,username', new Username()],
             'name_first' => 'required|string|between:1,191',
             'name_last' => 'required|string|between:1,191',
+            'country_code' => ['required', 'string', 'size:2', 'regex:/^[A-Za-z]{2}$/'],
             'password' => 'required|string|min:8|confirmed',
         ]);
 
@@ -41,6 +42,7 @@ class RegisterController extends AbstractLoginController
         }
 
         $data = $validator->validated();
+        $data['country_code'] = strtoupper($data['country_code']);
         unset($data['password_confirmation']);
 
         // root_admin defaults to false on the User model, so every
