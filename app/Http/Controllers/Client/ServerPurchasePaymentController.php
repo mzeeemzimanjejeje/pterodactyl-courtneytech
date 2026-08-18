@@ -62,7 +62,13 @@ class ServerPurchasePaymentController extends Controller
 
         $isUnlimited = $plan && str_contains(strtolower($plan->name), 'unlimited');
         if ($plan) {
-            $amount = $isUnlimited ? ($countryCode === 'KE' ? 120.00 : 150.00) : (float) $plan->price;
+            if ($countryCode === 'KE') {
+                $amount = $isUnlimited
+                    ? 120.00
+                    : ((int) $plan->memory <= 4 * 1024 ? 70.00 : 100.00);
+            } else {
+                $amount = $isUnlimited ? 150.00 : (float) $plan->price;
+            }
         } else {
             $prices = ResourcePrice::query()->where('is_active', true)->whereNotNull('resource_key')->get()->keyBy('resource_key');
             $amount = round(

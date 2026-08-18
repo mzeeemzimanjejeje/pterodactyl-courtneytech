@@ -29,6 +29,17 @@ interface Plan {
     is_featured: boolean;
 }
 
+interface NestOption {
+    id: number;
+    name: string;
+}
+
+interface EggOption {
+    id: number;
+    nest_id: number;
+    name: string;
+}
+
 declare global {
     interface Window {
         PaystackPop?: { setup: (options: Record<string, any>) => { openIframe: () => void } };
@@ -57,7 +68,11 @@ const loadPaystackScript = (): Promise<void> =>
 export default () => {
     const history = useHistory();
     const [plans, setPlans] = useState<Plan[] | null>(null);
+    const [nests, setNests] = useState<NestOption[]>([]);
+    const [eggs, setEggs] = useState<EggOption[]>([]);
     const [selected, setSelected] = useState<Plan | null>(null);
+    const [selectedNestId, setSelectedNestId] = useState<number | null>(null);
+    const [selectedEggId, setSelectedEggId] = useState<number | null>(null);
     const [serverName, setServerName] = useState('');
     const [phone, setPhone] = useState('');
     const [purchasing, setPurchasing] = useState(false);
@@ -68,8 +83,12 @@ export default () => {
 
     useEffect(() => {
         clearFlashes();
-        http.get('/account/store/plans')
-            .then((response) => setPlans(response.data))
+        Promise.all([http.get('/account/store/plans'), http.get('/account/store/custom/options')])
+            .then(([plansResponse, optionsResponse]) => {
+                setPlans(plansResponse.data);
+                setNests(optionsResponse.data.nests || []);
+                setEggs(optionsResponse.data.eggs || []);
+            })
             .catch(clearAndAddHttpError);
         return () => {
             if (timer.current) clearTimeout(timer.current);
@@ -111,15 +130,18 @@ export default () => {
     };
 
     const onConfirmPurchase = async () => {
-        if (!selected || !serverName.trim()) return;
+        if (!selected || !serverName.trim() || !selectedNestId || !selectedEggId) {
+            setErrorDialog({ title: 'Missing selection', message: 'Enter a server name and select a Nest and Egg.' });
+            return;
+        }
         setPurchasing(true);
         clearFlashes();
         try {
             const { data } = await http.post('/account/store/payment/initialize', {
                 server_name: serverName.trim(),
                 plan_id: selected.id,
-                nest_id: selected.nest_id,
-                egg_id: selected.egg_id,
+                nest_id: selectedNestId,
+                egg_id: selectedEggId,
                 memory: selected.memory,
                 disk: selected.disk,
                 cpu: selected.cpu,
@@ -232,6 +254,14 @@ export default () => {
                                         setServerName('');
                                         setPhone('');
                                         setSelected(plan);
+                                        const defaultNestId = plan.nest_id || nests[0]?.id || null;
+                                        const defaultEggId =
+                                            eggs.find((egg) => egg.id === plan.egg_id && egg.nest_id === defaultNestId)
+                                                ?.id ||
+                                            eggs.find((egg) => egg.nest_id === defaultNestId)?.id ||
+                                            null;
+                                        setSelectedNestId(defaultNestId);
+                                        setSelectedEggId(defaultEggId);
                                     }}
                                 >
                                     Buy Now
@@ -260,6 +290,43 @@ export default () => {
                                 required
                                 css={tw`mt-2`}
                             />
+                        </label>
+                        <label css={tw`block text-sm text-neutral-300 mt-4`}>
+                            Nest
+                            <select
+                                value={selectedNestId || ''}
+                                onChange={(event) => {
+                                    const nestId = Number(event.target.value) || null;
+                                    setSelectedNestId(nestId);
+                                    setSelectedEggId(eggs.find((egg) => egg.nest_id === nestId)?.id || null);
+                                }}
+                                css={tw`mt-2 w-full rounded bg-neutral-900 border border-neutral-600 px-3 py-2 text-neutral-100`}
+                            >
+                                <option value=''>Select a Nest</option>
+                                {nests.map((nest) => (
+                                    <option key={nest.id} value={nest.id}>
+                                        {nest.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label css={tw`block text-sm text-neutral-300 mt-4`}>
+                            Egg / Game
+                            <select
+                                value={selectedEggId || ''}
+                                onChange={(event) => setSelectedEggId(Number(event.target.value) || null)}
+                                disabled={!selectedNestId}
+                                css={tw`mt-2 w-full rounded bg-neutral-900 border border-neutral-600 px-3 py-2 text-neutral-100 disabled:opacity-50`}
+                            >
+                                <option value=''>Select an Egg</option>
+                                {eggs
+                                    .filter((egg) => egg.nest_id === selectedNestId)
+                                    .map((egg) => (
+                                        <option key={egg.id} value={egg.id}>
+                                            {egg.name}
+                                        </option>
+                                    ))}
+                            </select>
                         </label>
                         <label css={tw`block text-sm text-neutral-300 mt-4`}>
                             Kenyan M-Pesa phone (required for Kenyan accounts)

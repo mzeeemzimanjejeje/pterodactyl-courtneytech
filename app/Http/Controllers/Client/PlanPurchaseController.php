@@ -21,11 +21,25 @@ class PlanPurchaseController extends Controller
 
     public function index(): JsonResponse
     {
+        $isKenyan = strtoupper((string) auth()->user()?->country_code) === 'KE';
         $plans = Plan::where('is_active', true)
             ->whereNotNull('egg_id')
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->map(function (Plan $plan) use ($isKenyan) {
+                $price = (float) $plan->price;
+                if ($isKenyan) {
+                    $name = strtolower((string) $plan->name);
+                    $price = str_contains($name, 'unlimited')
+                        ? 120.00
+                        : ((int) $plan->memory <= 4 * 1024 ? 70.00 : 100.00);
+                }
+
+                $plan->price = number_format($price, 2, '.', '');
+                $plan->currency = 'KSh';
+                return $plan;
+            });
 
         return response()->json($plans);
     }
