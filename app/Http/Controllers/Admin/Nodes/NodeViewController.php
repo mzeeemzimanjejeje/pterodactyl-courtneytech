@@ -59,7 +59,13 @@ class NodeViewController extends Controller
      */
     public function configuration(Request $request, Node $node): View
     {
-        return view('admin.nodes.view.configuration', compact('node'));
+        $configuration = preg_replace(
+            '/(?m)^(\s*(?:token|token_id|daemon_token|daemon_token_id):\s*).+$/i',
+            '$1[REDACTED]',
+            $node->getYamlConfiguration(),
+        );
+
+        return view('admin.nodes.view.configuration', compact('node', 'configuration'));
     }
 
     /**
@@ -86,8 +92,7 @@ class NodeViewController extends Controller
     public function servers(Request $request, Node $node): View
     {
         $this->plainInject([
-            'node' => Collection::make([$node->makeVisible(['daemon_token_id', 'daemon_token'])])
-                ->only(['scheme', 'fqdn', 'daemonListen', 'daemon_token_id', 'daemon_token']),
+            'node' => Collection::make([$node])->only(['scheme', 'fqdn', 'daemonListen']),
         ]);
 
         return view('admin.nodes.view.servers', [

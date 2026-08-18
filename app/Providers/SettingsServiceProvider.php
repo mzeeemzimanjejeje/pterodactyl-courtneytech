@@ -30,6 +30,11 @@ class SettingsServiceProvider extends ServiceProvider
         'pterodactyl:client_features:allocations:enabled',
         'pterodactyl:client_features:allocations:range_start',
         'pterodactyl:client_features:allocations:range_end',
+        'services:paystack:public_key',
+        'services:paystack:secret_key',
+        'services:courtneytech:api_key',
+        'services:courtneytech:api_secret',
+        'services:courtneytech:account_id',
     ];
 
     /**
@@ -52,6 +57,9 @@ class SettingsServiceProvider extends ServiceProvider
      */
     protected static array $encrypted = [
         'mail:mailers:smtp:password',
+        'services:paystack:secret_key',
+        'services:courtneytech:api_key',
+        'services:courtneytech:api_secret',
     ];
 
     /**

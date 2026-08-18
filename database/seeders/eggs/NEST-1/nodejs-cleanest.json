@@ -1,0 +1,45 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2026-08-10T20:49:49+00:00",
+    "name": "Node.js (Cleanest)",
+    "author": "goodnessobilom@gmail.com",
+    "description": "Minimalist Node.js egg. Installs dependencies only when node_modules is missing; uses npm ci when package-lock.json exists. No installation actions performed.",
+    "features": [],
+    "docker_images": [
+        "ghcr.io/parkervcp/yolks:nodejs_20",
+        "ghcr.io/parkervcp/yolks:nodejs_18",
+        "ghcr.io/parkervcp/yolks:nodejs_22",
+        "ghcr.io/parkervcp/yolks:nodejs_24",
+        "ghcr.io/parkervcp/yolks:nodejs_25"
+    ],
+    "file_denylist": [],
+    "startup": "if [ -f /home/container/package.json ] && [ ! -d /home/container/node_modules ]; then [ -f /home/container/package-lock.json ] && /usr/local/bin/npm ci --no-audit --no-fund || /usr/local/bin/npm install --no-audit --no-fund; fi; /usr/local/bin/${CMD_START}",
+    "config": {
+        "files": "{}",
+        "startup": "{\"done\":\"node\"}",
+        "logs": "{}",
+        "stop": "^^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash \necho \"Your server is currently being created...\"\nexit 0",
+            "container": "ghcr.io/parkervcp/yolks:nodejs_20",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Start-up Command",
+            "description": "The command used to start the application.",
+            "env_variable": "CMD_START",
+            "default_value": "npm start",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string"
+        }
+    ]
+}

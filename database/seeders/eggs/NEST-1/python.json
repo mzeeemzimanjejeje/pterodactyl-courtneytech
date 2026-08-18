@@ -1,0 +1,113 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2026-08-10T20:47:33+00:00",
+    "name": "PYTHON ENGINE",
+    "author": "support@courtneytech.xyz",
+    "description": "Python 3.12 + Deno + ffmpeg (prebuilt GHCR yolk). Optimized for yt-dlp EJS environments.",
+    "features": null,
+    "docker_images": {
+        "Python 3.12 + Deno + ffmpeg (GHCR)": "ghcr.io/tristancage/media-yolk:latest"
+    },
+    "file_denylist": [],
+    "startup": "export PATH=\"/home/container/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH\"; export HOME=/home/container; if [[ -d .git ]] && [[ \"{{AUTO_UPDATE}}\" == \"1\" ]]; then git pull; fi; if [[ ! -z \"{{PY_PACKAGES}}\" ]]; then pip install -U --prefix .local {{PY_PACKAGES}}; fi; if [[ -f /home/container/${REQUIREMENTS_FILE} ]]; then pip install -U --prefix .local -r ${REQUIREMENTS_FILE}; fi; echo \"deno=$(command -v deno || echo missing)\"; echo \"ffmpeg=$(command -v ffmpeg || echo missing)\"; if command -v deno >/dev/null 2>&1; then deno --version || true; else echo \"[DENO] deno not available in this container; continuing without Deno.\"; fi; ffmpeg -version | head -n 1 || true; exec /usr/local/bin/python /home/container/{{PY_FILE}}",
+    "config": {
+        "files": "{}",
+        "startup": "{ \"done\": \"Server ready\" }",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\nset -e\n\napt update\napt install -y --no-install-recommends git ca-certificates\n\nmkdir -p /mnt/server\ncd /mnt/server\n\nif [ \"${USER_UPLOAD}\" == \"1\" ]; then\n  echo \"USER_UPLOAD enabled, skipping repo clone\"\n  exit 0\nfi\n\nif [[ ! -z \"${GIT_ADDRESS}\" ]]; then\n  if [[ ${GIT_ADDRESS} != *.git ]]; then\n    GIT_ADDRESS=${GIT_ADDRESS}.git\n  fi\n\n  if [ -z \"${USERNAME}\" ] && [ -z \"${ACCESS_TOKEN}\" ]; then\n    echo \"Using anonymous git access\"\n  else\n    GIT_ADDRESS=\"https://${USERNAME}:${ACCESS_TOKEN}@$(echo ${GIT_ADDRESS} | cut -d/ -f3-)\"\n  fi\n\n  if [ \"$(ls -A /mnt/server)\" ]; then\n    if [ -d .git ]; then\n      git pull || true\n    fi\n  else\n    if [ -z \"${BRANCH}\" ]; then\n      git clone ${GIT_ADDRESS} .\n    else\n      git clone --single-branch --branch ${BRANCH} ${GIT_ADDRESS} .\n    fi\n  fi\nfi\n\nexport HOME=/mnt/server\n\nif [[ ! -z ${PY_PACKAGES} ]]; then\n  pip install -U --prefix .local ${PY_PACKAGES}\nfi\n\nif [ -f /mnt/server/${REQUIREMENTS_FILE} ]; then\n  pip install -U --prefix .local -r ${REQUIREMENTS_FILE}\nfi\n\necho \"Install complete\"",
+            "container": "python:3.12-slim",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Git Repo Address",
+            "description": "Git repo to clone",
+            "env_variable": "GIT_ADDRESS",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string"
+        },
+        {
+            "name": "Git Branch",
+            "description": "Branch to clone",
+            "env_variable": "BRANCH",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string"
+        },
+        {
+            "name": "User Uploaded Files",
+            "description": "Skip git clone if user uploads files",
+            "env_variable": "USER_UPLOAD",
+            "default_value": "0",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean"
+        },
+        {
+            "name": "Auto Update",
+            "description": "Pull latest on startup",
+            "env_variable": "AUTO_UPDATE",
+            "default_value": "0",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean"
+        },
+        {
+            "name": "App py file",
+            "description": "Main Python file",
+            "env_variable": "PY_FILE",
+            "default_value": "app.py",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string"
+        },
+        {
+            "name": "Additional Python packages",
+            "description": "Extra pip packages",
+            "env_variable": "PY_PACKAGES",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string"
+        },
+        {
+            "name": "Git Username",
+            "description": "Git username (optional)",
+            "env_variable": "USERNAME",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string"
+        },
+        {
+            "name": "Git Access Token",
+            "description": "Git token (optional)",
+            "env_variable": "ACCESS_TOKEN",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string"
+        },
+        {
+            "name": "Requirements file",
+            "description": "requirements.txt path",
+            "env_variable": "REQUIREMENTS_FILE",
+            "default_value": "requirements.txt",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string"
+        }
+    ]
+}

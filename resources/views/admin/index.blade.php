@@ -13,6 +13,33 @@
 @endsection
 
 @section('content')
+<style>
+    .ct-revenue-card {
+        overflow: hidden;
+    }
+
+    .ct-revenue-card .inner {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .ct-revenue-card .ct-revenue-value {
+        display: block;
+        max-width: 100%;
+        margin-right: 0;
+        overflow: hidden;
+        font-size: clamp(18px, 2.1vw, 24px);
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ct-revenue-card .ct-revenue-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
 <div class="row">
     <div class="col-xs-6 col-md-3">
         <div class="small-box bg-aqua" style="min-height: 90px;">
@@ -39,10 +66,10 @@
         </div>
     </div>
     <div class="col-xs-6 col-md-3">
-        <div class="small-box bg-yellow" style="min-height: 90px;">
+        <div class="small-box bg-yellow ct-revenue-card" style="min-height: 90px;">
             <div class="inner">
-                <h3>KSh {{ number_format($totalRevenue, 2) }}</h3>
-                <p>Total Revenue</p>
+                <h3 class="ct-revenue-value" title="KSh {{ number_format($totalRevenue, 2) }}">KSh {{ number_format($totalRevenue, 2) }}</h3>
+                <p class="ct-revenue-label">Total Revenue</p>
             </div>
         </div>
     </div>

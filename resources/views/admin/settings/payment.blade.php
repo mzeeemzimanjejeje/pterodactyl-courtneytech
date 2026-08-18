@@ -1,0 +1,75 @@
+@include('partials.admin.settings.nav', ['activeTab' => 'payment'])
+@extends('layouts.admin')
+
+@section('title')
+    Payment API Keys
+@endsection
+
+@section('content-header')
+    <h1>Payment API Keys<small>Configure the payment gateways used for wallet top-ups.</small></h1>
+    <ol class="breadcrumb">
+        <li><a href="{{ route('admin.index') }}">Admin</a></li>
+        <li><a href="{{ route('admin.settings') }}">Settings</a></li>
+        <li class="active">Payment API Keys</li>
+    </ol>
+@endsection
+
+@section('content')
+    @yield('settings::nav')
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="callout callout-warning">
+                <h4>Keep payment credentials private</h4>
+                <p>Only administrators can access this page. Existing credentials are never displayed. Leave a field blank to keep its current value.</p>
+            </div>
+        </div>
+    </div>
+    <form action="{{ route('admin.settings.payment') }}" method="POST">
+        {!! csrf_field() !!}
+        <input type="hidden" name="_method" value="PATCH">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="box">
+                    <div class="box-header with-border">
+                        <h3 class="box-title">Paystack — Card Payments</h3>
+                    </div>
+                    <div class="box-body">
+                        <div class="form-group">
+                            <label class="control-label" for="paystack_public_key">Public Key @if (data_get($configured, 'services:paystack:public_key', false)) <span class="label label-success">Configured</span> @endif</label>
+                            <input id="paystack_public_key" type="text" class="form-control" name="paystack_public_key" autocomplete="off" placeholder="{{ data_get($configured, 'services:paystack:public_key', false) ? 'Configured — enter a new value to replace it' : 'pk_live_...' }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label" for="paystack_secret_key">Secret Key @if (data_get($configured, 'services:paystack:secret_key', false)) <span class="label label-success">Configured</span> @endif</label>
+                            <input id="paystack_secret_key" type="password" class="form-control" name="paystack_secret_key" autocomplete="new-password" placeholder="{{ data_get($configured, 'services:paystack:secret_key', false) ? 'Configured — enter a new value to replace it' : 'sk_live_...' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="box">
+                    <div class="box-header with-border">
+                        <h3 class="box-title">CourtneyTech — M-Pesa</h3>
+                        <p class="text-muted">The official CourtneyTech gateway endpoint is built in and is not editable.</p>
+                    </div>
+                    <div class="box-body">
+                        <div class="form-group">
+                            <label class="control-label" for="courtney_api_key">API Key @if (data_get($configured, 'services:courtneytech:api_key', false)) <span class="label label-success">Configured</span> @endif</label>
+                            <input id="courtney_api_key" type="text" class="form-control" name="courtney_api_key" autocomplete="off" placeholder="{{ data_get($configured, 'services:courtneytech:api_key', false) ? 'Configured — enter a new value to replace it' : 'CourtneyTech API key' }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label" for="courtney_api_secret">API Secret @if (data_get($configured, 'services:courtneytech:api_secret', false)) <span class="label label-success">Configured</span> @endif</label>
+                            <input id="courtney_api_secret" type="password" class="form-control" name="courtney_api_secret" autocomplete="new-password" placeholder="{{ data_get($configured, 'services:courtneytech:api_secret', false) ? 'Configured — enter a new value to replace it' : 'CourtneyTech API secret' }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label" for="courtney_account_id">Payment Account ID @if (data_get($configured, 'services:courtneytech:account_id', false)) <span class="label label-success">Configured</span> @endif</label>
+                            <input id="courtney_account_id" type="text" class="form-control" name="courtney_account_id" autocomplete="off" placeholder="{{ data_get($configured, 'services:courtneytech:account_id', false) ? 'Configured — enter a new value to replace it' : 'e.g. 9' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="box-footer">
+            <button type="submit" class="btn btn-primary pull-right">Update Payment Settings</button>
+        </div>
+    </form>
+@endsection
