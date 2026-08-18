@@ -72,9 +72,18 @@ export default () => {
     useEffect(() => {
         http.get('/account/store/custom/options')
             .then(({ data }) => {
-                setOptions(data);
-                const nest = data.nests?.[0];
-                const egg = data.eggs?.find((item: any) => item.nest_id === nest?.id);
+                const normalized: Options = {
+                    ...data,
+                    nests: (data.nests || []).map((nest: any) => ({ id: Number(nest.id), name: String(nest.name) })),
+                    eggs: (data.eggs || []).map((egg: any) => ({
+                        id: Number(egg.id),
+                        nest_id: Number(egg.nest_id),
+                        name: String(egg.name),
+                    })),
+                };
+                setOptions(normalized);
+                const nest = normalized.nests[0];
+                const egg = normalized.eggs.find((item) => item.nest_id === nest?.id);
                 if (nest && egg) setConfig((c) => ({ ...c, nestId: nest.id, eggId: egg.id }));
             })
             .catch((e) => setError(e?.response?.data?.error || 'Unable to load custom server options.'));
@@ -83,6 +92,7 @@ export default () => {
         };
     }, []);
     const priceOf = (key: keyof Options['prices']) => options?.prices[key]?.price_kes ?? 0;
+    const visibleEggs = options?.eggs.filter((egg) => egg.nest_id === config.nestId) || [];
     const total = useMemo(
         () =>
             options
@@ -173,11 +183,12 @@ export default () => {
                         css={tw`w-full bg-neutral-900 border border-neutral-600 rounded px-3 py-2 text-neutral-100 text-sm`}
                         value={config.nestId ?? ''}
                         onChange={(e) => {
-                            const nestId = Number(e.target.value);
+                            const nestId = e.target.value ? Number(e.target.value) : null;
                             const egg = options.eggs.find((item) => item.nest_id === nestId);
                             setConfig((c) => ({ ...c, nestId, eggId: egg?.id ?? null }));
                         }}
                     >
+                        <option value={''}>Select a Nest</option>
                         {options.nests.map((nest) => (
                             <option key={nest.id} value={nest.id}>
                                 {nest.name}
@@ -190,15 +201,16 @@ export default () => {
                     <select
                         css={tw`w-full bg-neutral-900 border border-neutral-600 rounded px-3 py-2 text-neutral-100 text-sm`}
                         value={config.eggId ?? ''}
-                        onChange={(e) => setConfig((c) => ({ ...c, eggId: Number(e.target.value) }))}
+                        onChange={(e) =>
+                            setConfig((c) => ({ ...c, eggId: e.target.value ? Number(e.target.value) : null }))
+                        }
                     >
-                        {options.eggs
-                            .filter((egg) => egg.nest_id === config.nestId)
-                            .map((egg) => (
-                                <option key={egg.id} value={egg.id}>
-                                    {egg.name}
-                                </option>
-                            ))}
+                        <option value={''}>Select an Egg</option>
+                        {visibleEggs.map((egg) => (
+                            <option key={egg.id} value={egg.id}>
+                                {egg.name}
+                            </option>
+                        ))}
                     </select>
                 </div>
                 <div css={tw`grid grid-cols-1 sm:grid-cols-2 gap-5`}>

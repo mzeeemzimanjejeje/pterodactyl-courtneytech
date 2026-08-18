@@ -28,7 +28,8 @@ class CustomBuildController extends Controller
             ->orderBy('name')
             ->get(['id', 'name'])
             ->values()
-            ->map(fn (Nest $nest) => ['id' => $nest->id, 'name' => $nest->name]);
+            ->map(fn (Nest $nest) => ['id' => (int) $nest->id, 'name' => $nest->name])
+            ->values();
 
         $eggs = Egg::query()
             ->whereIn('nest_id', $nests->pluck('id'))
@@ -37,10 +38,11 @@ class CustomBuildController extends Controller
             ->get(['id', 'nest_id', 'name'])
             ->values()
             ->map(fn (Egg $egg) => [
-                'id' => $egg->id,
-                'nest_id' => $egg->nest_id,
+                'id' => (int) $egg->id,
+                'nest_id' => (int) $egg->nest_id,
                 'name' => $egg->name,
-            ]);
+            ])
+            ->values();
 
         $prices = ResourcePrice::where('is_active', true)
             ->whereNotNull('resource_key')
