@@ -1004,16 +1004,6 @@ const fallbackCountryOptions: CountryOption[] = [
     },
 ];
 
-const regionCodes =
-    typeof Intl.supportedValuesOf === 'function'
-        ? Intl.supportedValuesOf('region').filter((code) => /^[A-Z]{2}$/.test(code))
-        : [];
-const displayNames = typeof Intl.DisplayNames === 'function' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
-
-export const countryOptions: CountryOption[] =
-    displayNames && regionCodes.length > 0
-        ? regionCodes
-              .map((code) => ({ code, name: displayNames.of(code) || code }))
-              .filter(({ name }) => name !== 'undefined')
-              .sort((a, b) => a.name.localeCompare(b.name))
-        : fallbackCountryOptions;
+// Use the static catalog for deterministic behavior across Chromium, Safari, and
+// older embedded browsers. It also guarantees every ISO option is searchable.
+export const countryOptions: CountryOption[] = fallbackCountryOptions;
