@@ -9,7 +9,8 @@ return new class () extends Migration {
     {
         Schema::create('server_purchase_payments', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id');
+            // Pterodactyl's users table uses an unsigned INT primary key.
+            $table->unsignedInteger('user_id');
             $table->unsignedBigInteger('plan_id')->nullable();
             $table->string('reference', 191)->unique();
             $table->string('gateway', 32);
