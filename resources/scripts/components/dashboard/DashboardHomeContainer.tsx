@@ -8,18 +8,6 @@ import PageContentBlock from '@/components/elements/PageContentBlock';
 import ContentBox from '@/components/elements/ContentBox';
 import http from '@/api/http';
 import tw from 'twin.macro';
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    Tooltip as ChartTooltip,
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
-    Legend,
-} from 'recharts';
 
 interface Transaction {
     id: number;
@@ -50,10 +38,7 @@ export default () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        Promise.all([
-            getServers({ page: 1 }),
-            http.get('/account/wallet/data'),
-        ])
+        Promise.all([getServers({ page: 1 }), http.get('/account/wallet/data')])
             .then(([serverResult, walletResult]) => {
                 setServers(serverResult.items.slice(0, 3));
                 setTotalServers(serverResult.pagination.total);
@@ -82,10 +67,7 @@ export default () => {
         return acc;
     }, {});
 
-    const pieData = Object.entries(statusCounts).map(([status, count]) => ({
-        name: status,
-        value: count,
-    }));
+    const maxDeposit = Math.max(...chartData.map((entry) => entry.amount), 1);
 
     if (loading) {
         return (
@@ -125,35 +107,40 @@ export default () => {
                     {chartData.length === 0 ? (
                         <p css={tw`text-sm text-neutral-400`}>No successful deposits yet.</p>
                     ) : (
-                        <ResponsiveContainer width={'100%'} height={220}>
-                            <BarChart data={chartData}>
-                                <XAxis dataKey={'date'} stroke={'#7a8ba3'} fontSize={12} />
-                                <YAxis stroke={'#7a8ba3'} fontSize={12} />
-                                <ChartTooltip
-                                    contentStyle={{ background: '#1f2937', border: 'none', borderRadius: 6 }}
-                                    labelStyle={{ color: '#fff' }}
-                                />
-                                <Bar dataKey={'amount'} fill={'#06b6d4'} radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <div css={tw`flex items-end gap-2 h-56 pt-6`}>
+                            {chartData.map((entry) => (
+                                <div key={entry.date} css={tw`flex-1 h-full flex flex-col justify-end items-center gap-2`}>
+                                    <span css={tw`text-xs text-neutral-300`}>KSh {entry.amount.toFixed(0)}</span>
+                                    <div
+                                        css={tw`w-full bg-cyan-500 rounded-t`}
+                                        style={{ height: `${Math.max((entry.amount / maxDeposit) * 75, 4)}%` }}
+                                        title={`KSh ${entry.amount.toFixed(2)}`}
+                                    />
+                                    <span css={tw`text-xs text-neutral-400`}>{entry.date}</span>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </ContentBox>
 
                 <ContentBox title={'Transaction Status'} css={tw`flex-1`}>
-                    {pieData.length === 0 ? (
+                    {Object.keys(statusCounts).length === 0 ? (
                         <p css={tw`text-sm text-neutral-400`}>No transactions yet.</p>
                     ) : (
-                        <ResponsiveContainer width={'100%'} height={220}>
-                            <PieChart>
-                                <Pie data={pieData} dataKey={'value'} nameKey={'name'} innerRadius={45} outerRadius={75}>
-                                    {pieData.map((entry) => (
-                                        <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || '#7a8ba3'} />
-                                    ))}
-                                </Pie>
-                                <Legend wrapperStyle={{ fontSize: 12, color: '#d6e4f0' }} />
-                                <ChartTooltip contentStyle={{ background: '#1f2937', border: 'none', borderRadius: 6 }} />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        <div css={tw`space-y-3`}>
+                            {Object.entries(statusCounts).map(([status, count]) => (
+                                <div key={status} css={tw`flex items-center justify-between bg-neutral-900 rounded px-4 py-3`}>
+                                    <span css={tw`flex items-center gap-2 text-sm text-neutral-200`}>
+                                        <span
+                                            css={tw`inline-block w-3 h-3 rounded-full`}
+                                            style={{ backgroundColor: STATUS_COLORS[status] || '#7a8ba3' }}
+                                        />
+                                        {status}
+                                    </span>
+                                    <span css={tw`text-sm font-bold text-neutral-100`}>{count}</span>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </ContentBox>
             </div>

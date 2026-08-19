@@ -22,54 +22,85 @@ const EyeIcon = ({ hidden }: { hidden: boolean }) => (
     </svg>
 );
 
+interface FieldContentProps {
+    field: FieldProps['field'];
+    form: FieldProps['form'];
+    id?: string;
+    light: boolean;
+    label?: string;
+    description?: string;
+    type?: string;
+    inputProps: React.InputHTMLAttributes<HTMLInputElement>;
+}
+
+const FieldContent = ({
+    field,
+    form: { errors, touched },
+    id,
+    light,
+    label,
+    description,
+    type,
+    inputProps,
+}: FieldContentProps) => {
+    const [visible, setVisible] = useState(false);
+    const isPassword = type === 'password';
+    const inputType = isPassword && visible ? 'text' : type;
+
+    return (
+        <div>
+            {label && (
+                <Label htmlFor={id} isLight={light}>
+                    {label}
+                </Label>
+            )}
+            <div css={isPassword ? tw`relative` : undefined}>
+                <Input
+                    id={id}
+                    {...field}
+                    {...inputProps}
+                    type={inputType}
+                    isLight={light}
+                    hasError={!!(touched[field.name] && errors[field.name])}
+                    css={isPassword ? tw`pr-12` : undefined}
+                />
+                {isPassword && (
+                    <button
+                        type={'button'}
+                        aria-label={visible ? 'Hide password' : 'Show password'}
+                        title={visible ? 'Hide password' : 'Show password'}
+                        onClick={() => setVisible((value) => !value)}
+                        css={tw`absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-800 focus:outline-none`}
+                    >
+                        <EyeIcon hidden={!visible} />
+                    </button>
+                )}
+            </div>
+            {touched[field.name] && errors[field.name] ? (
+                <p className={'input-help error'}>
+                    {(errors[field.name] as string).charAt(0).toUpperCase() + (errors[field.name] as string).slice(1)}
+                </p>
+            ) : description ? (
+                <p className={'input-help'}>{description}</p>
+            ) : null}
+        </div>
+    );
+};
+
 const Field = forwardRef<HTMLInputElement, Props>(
     ({ id, name, light = false, label, description, validate, type, ...props }: Props, ref) => (
         <FormikField innerRef={ref} name={name} validate={validate}>
-            {({ field, form: { errors, touched } }: FieldProps) => {
-                const [visible, setVisible] = useState<boolean>(false);
-                const isPassword = type === 'password';
-                const inputType = isPassword && visible ? 'text' : type;
-
-                return (
-                    <div>
-                        {label && (
-                            <Label htmlFor={id} isLight={light}>
-                                {label}
-                            </Label>
-                        )}
-                        <div css={isPassword ? tw`relative` : undefined}>
-                            <Input
-                                id={id}
-                                {...field}
-                                {...props}
-                                type={inputType}
-                                isLight={light}
-                                hasError={!!(touched[field.name] && errors[field.name])}
-                                css={isPassword ? tw`pr-12` : undefined}
-                            />
-                            {isPassword && (
-                                <button
-                                    type={'button'}
-                                    aria-label={visible ? 'Hide password' : 'Show password'}
-                                    title={visible ? 'Hide password' : 'Show password'}
-                                    onClick={() => setVisible((value: boolean) => !value)}
-                                    css={tw`absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-800 focus:outline-none`}
-                                >
-                                    <EyeIcon hidden={!visible} />
-                                </button>
-                            )}
-                        </div>
-                        {touched[field.name] && errors[field.name] ? (
-                            <p className={'input-help error'}>
-                                {(errors[field.name] as string).charAt(0).toUpperCase() +
-                                    (errors[field.name] as string).slice(1)}
-                            </p>
-                        ) : description ? (
-                            <p className={'input-help'}>{description}</p>
-                        ) : null}
-                    </div>
-                );
-            }}
+            {(fieldProps: FieldProps) => (
+                <FieldContent
+                    {...fieldProps}
+                    id={id}
+                    light={light}
+                    label={label}
+                    description={description}
+                    type={type}
+                    inputProps={props}
+                />
+            )}
         </FormikField>
     )
 );
